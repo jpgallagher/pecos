@@ -2,15 +2,15 @@
 
 # $1 = input file
 
-CS0=".."
-LIB="$CS0/ciao_bundles/build/bin"
-PE="$CS0/pe/CHC-COMP"
-PRE="$CS0/pe/CHC-COMP"
+PECOS=".."
+LIB="$PECOS/ciao_bundles/build/bin"
+PE="$PECOS/pe"
+PRE="$PECOS/smt2chc"
 
-export CIAOPATH="$CS0/ciao_bundles"
-export CIAOROOT="$CS0/bin/ciao"
-export PYTHONPATH="$CS0/z3/build/python"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
+export CIAOPATH="$PECOS/ciao_bundles"
+export CIAOROOT="$PECOS/bin/ciao"
+export PYTHONPATH="$PECOS/z3/build/python"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3
 
 
 # constraint specialisation
@@ -64,7 +64,7 @@ fi
 
 #echo $1
 # Translation from competition format to Prolog-readable form
-python $PRE/format/format.py --split_queries True "$1" > "$resultdir/$f.pl"
+python $PRE/format.py --split_queries True "$1" > "$resultdir/$f.pl"
 $PRE/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" -int
 prog="$resultdir/$f.norm.pl"
 
