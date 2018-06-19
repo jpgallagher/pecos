@@ -188,8 +188,8 @@ nnf(Or,And) :-
 nnf(If,If1) :-
 	If =.. [if,B,Then,Else],
 	!,
-	nnfList([B,Then,Else],[B1,Then1,Else1]),
-	If1 =.. [if,B1,Then1,Else1].
+	nnfList([Then,Else],[NotThen,NotElse]),
+	If1 =.. [if,B,NotThen,NotElse].
 nnf(X >= Y, X < Y) :-
 	!.
 nnf(X =< Y, X > Y) :-
