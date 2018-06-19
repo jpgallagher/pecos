@@ -3,14 +3,14 @@
 # $1 = input file
 
 CS0=".."
-LIB="$CIAOPATH/build/bin"
-PE="/Users/jpg/Research/LP/clptools/predabs/pe/CHC-COMP"
-PRE="/Users/jpg/Research/LP/clptools/predabs/pe/CHC-COMP"
+LIB="$CS0/ciao_bundles/build/bin"
+PE="$CS0/pe/CHC-COMP"
+PRE="$CS0/pe/CHC-COMP"
 
-#export CIAOPATH="$CS0/ciao_bundles"
-#export CIAOROOT="$CS0/bin/ciao"
-#export PYTHONPATH="$CS0/z3/build/python"
-#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
+export CIAOPATH="$CS0/ciao_bundles"
+export CIAOROOT="$CS0/bin/ciao"
+export PYTHONPATH="$CS0/z3/build/python"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
 
 
 # constraint specialisation
