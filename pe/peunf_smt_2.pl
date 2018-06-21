@@ -30,6 +30,7 @@
 :- dynamic(prop/2).
 :- dynamic(peClause/3).
 :- dynamic(negprops/0).
+:- dynamic(type/1).
 
 
 
@@ -63,6 +64,7 @@ recognised_option('-o',    outputFile(R),[R]).
 recognised_option('-props',propFile(R),[R]).
 recognised_option('-neg',  negprops,[]).
 recognised_option('-entry',entry(Q),[Q]).
+recognised_option('-type',type(T),[T]).
 
 	
 setOptions(Options,File,Goal,OutS) :-
@@ -76,6 +78,7 @@ setOptions(Options,File,Goal,OutS) :-
 			fail),
 	(member(outputFile(OutFile),Options), open(OutFile,write,OutS); 
 			OutS=user_output),
+	(member(type(T),Options), member(T,[int,real]) -> assert(type(T)); assert(type(real))),
 	(member(negprops,Options) -> assert(negprops); true),
 	(member(propFile(PFile),Options), readPropFile(PFile); 
 			true).
@@ -88,7 +91,8 @@ convertQueryString(Q,Q1) :-
 cleanup :-
 	retractall(prop(_,_)),
 	retractall(negprops),
-	retractall(peClause(_,_,_)).
+	retractall(peClause(_,_,_)),
+	retractall(type(_)).
 	
 findBackEdges([P|Ps],M0,M3,Anc,Bs0,Bs3) :-
 	successors(P,Ss),
@@ -495,8 +499,6 @@ addPredProps([],C,K0,K1,[C-K0]) :-
 addPredProps([C-Id|Props],Cp,K0,K1,[C-Id|Props1]) :-
 	addPredProps(Props,Cp,K0,K1,Props1).
 	
-	
-
 contains(neg(C1),C2) :-
 	!,
 	melt([C2,C1],E),
@@ -511,10 +513,14 @@ contains(C1,C2) :-
 	yices_vars(Vs,real,Ws),
 	yices_unsat(E,Ws).
 	
+simplify(Cs,_,Cs) :-
+	type(int),
+	!.
 simplify(Cs,Zs,Cs1) :-
 	makePolyhedron(Cs,H),
 	project(H,Zs,H1),
 	getConstraint(H1,Cs1).
+
 
 numberVersions([version(P/N,[])|AllVersions],P/N,K,[nversion(P/N,[],P)|NVersions]) :-
 	!, % initial goal not renamed

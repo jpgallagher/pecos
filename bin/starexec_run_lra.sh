@@ -2,15 +2,15 @@
 
 # $1 = input file
 
-CS0=".."
-LIB="$CS0/ciao_bundles/build/bin"
-PE="$CS0/pe/CHC-COMP"
-PRE="$CS0/pe/CHC-COMP"
+PECOS=".."
+LIB="$PECOS/ciao_bundles/build/bin"
+PE="$PECOS/pe/CHC-COMP"
+PRE="$PECOS/pe/CHC-COMP"
 
-export CIAOPATH="$CS0/ciao_bundles"
-export CIAOROOT="$CS0/bin/ciao"
-export PYTHONPATH="$CS0/z3/build/python"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
+export CIAOPATH="$PECOS/ciao_bundles"
+export CIAOROOT="$PECOS/bin/ciao"
+export PYTHONPATH="$PECOS/z3/build/python"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3
 
 # $1 = input file
 

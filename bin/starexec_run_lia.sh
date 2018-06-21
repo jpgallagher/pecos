@@ -13,6 +13,7 @@ LIB="/Users/jpg/ciao/build/bin"
 #export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
 
 
+
 # constraint specialisation
 function spec() {
    local infile=$1
@@ -66,6 +67,7 @@ fi
 # Translation from competition format to Prolog-readable form
 python $SMT2CHC/format.py --split_queries True "$1" > "$resultdir/$f.pl"
 $SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" -int
+
 prog="$resultdir/$f.norm.pl"
 
 

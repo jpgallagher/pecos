@@ -1,9 +1,9 @@
 #!/bin/sh
 # script for setting up PECOS CHC solver
 
-PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
+PECOS="/root/pecos"
 #CIAOROOT="/Users/jpg/local/ciao-devel"
-#CIAOPATH="/Users/jpg/ciao"
+#export CIAOPATH="$PECOS/ciao_bundles"
 
 
 
@@ -18,7 +18,7 @@ ciaoc -S $PECOS/pe/tpclp.pl
 ciaoc -S $CIAOPATH/chclibs/src/thresholds1.pl
 ciaoc -S $CIAOPATH/chclibs/src/cpascc.pl
 ciaoc -S $CIAOPATH/chclibs/src/qa.pl
-ciaoc -S $CIAOPATH/RAHFT/src/insertprops.pl
+ciaoc -S $CIAOPATH/RAHFT/src/insertProps.pl
 ciaoc -S $CIAOPATH/RAHFT/src/raf
 
 # copy library executables to $CIAOPATH/build/bin
@@ -26,7 +26,7 @@ ciaoc -S $CIAOPATH/RAHFT/src/raf
 mv $CIAOPATH/chclibs/src/thresholds1 $CIAOPATH/build/bin
 mv $CIAOPATH/chclibs/src/cpascc $CIAOPATH/build/bin
 mv $CIAOPATH/chclibs/src/qa $CIAOPATH/build/bin
-mv $CIAOPATH/RAHFT/src/insertprops $CIAOPATH/build/bin
+mv $CIAOPATH/RAHFT/src/insertProps $CIAOPATH/build/bin
 mv $CIAOPATH/RAHFT/src/raf $CIAOPATH/build/bin
 
 

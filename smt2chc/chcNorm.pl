@@ -147,6 +147,13 @@ peBoolExpr(not(B),B1,Ds0,Ds1,K0,K1) :-
 	!,
 	nnf(B,NotB),
 	peBoolExpr(NotB,B1,Ds0,Ds1,K0,K1).
+peBoolExpr('=>'(F1,F2),BImplies,Ds0,Ds1,K0,K2) :-
+	!,
+	peBoolExprList([not(F1),F2],[NotF1,F3],Ds0,Ds2,K0,K1),
+	varset('=>'(F1,F2),Xs),
+	newPred(implies,BImplies,K1,K2),
+	BImplies =.. [BImplies|Xs],
+	makeImpliesClauses(BImplies,NotF1,F3,Ds1,Ds2).
 peBoolExpr(iff(B1,B2),BIff,Ds0,Ds2,K0,K2) :-
 	!,
 	peBoolExprList([B1,B2,not(B1),not(B2)],[B3,B4,B5,B6],Ds0,Ds1,K0,K1),
@@ -185,6 +192,10 @@ nnf(Or,And) :-
 	!,
 	nnfList(Xs,Ys),
 	And =.. [and|Ys].
+nnf('=>'(F1,F2),F) :-
+	!,
+	nnf(F1,NotF1),
+	F =.. [and,NotF1,F2].
 nnf(If,If1) :-
 	If =.. [if,B,Then,Else],
 	!,
@@ -243,6 +254,9 @@ makeIfClauses(H,B,NotB,Then,Else,[(H :- (B1,Then1)),(H :- (NotB1,Else1))|Ds0],Ds
 
 makeIffClauses(H,B1,B2,B3,B4,[(H :- A1,A2),(H :- A3,A4)|Ds0],Ds0) :-
 	makeArgList([B1,B2,B3,B4],[A1,A2,A3,A4]).
+	
+makeImpliesClauses(H,NotF1,F3,[(H :- A1),(H :- A2)|Ds0],Ds0) :-
+	makeArgList([NotF1,F3],[A1,A2]).
 	
 integerTrans(X,Y) :-
 	integerTransform(X,Y1,Bs,[]),
