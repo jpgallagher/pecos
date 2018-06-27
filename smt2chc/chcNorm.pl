@@ -2,7 +2,12 @@
 
 :- use_module(library(lists)).
 :- use_module(library(terms_vars)).
+%the use of transf may not be appropriate for real division (eg. 1.8/10)
+:- use_module(chclibs(lcm), [transf/2]).
+:- use_module(chclibs(common), _).
 
+
+%TODO: Any constraint that we cannot handle or not in the right form should be abstracted away.
 
 
 :- dynamic(intDomain/0).
@@ -13,7 +18,7 @@ main([FIn,FOut,'-int']) :-
 	open(FIn,read,S1),
 	open(FOut,write,S2),
 	read(S1,C),
-	normaliseClauses(C,S1,S2,Ds,[],0,_),
+	normaliseClauses(C,S1,S2,Ds,[],0,_), write(C), nl,
 	(intDomain -> integerTransCls(Ds,Ds1); Ds1=Ds),
 	addBoolClauses(Ds1,S2),
 	addNeqClauses(S2),
@@ -26,7 +31,7 @@ main([FIn,FOut]) :-
 	open(FOut,write,S2),
 	read(S1,C),
 	normaliseClauses(C,S1,S2,Ds,[],0,_),
-	(intDomain -> integerTransCls(Ds,Ds1); Ds1=Ds),
+    (intDomain -> integerTransCls(Ds,Ds1); Ds1=Ds),
 	addBoolClauses(Ds1,S2),
 	addNeqClauses(S2),
 	close(S1),
@@ -40,7 +45,8 @@ normaliseClauses(end_of_file,_,_,Ds,Ds,K,K) :-
 normaliseClauses(C,S1,S2,Ds0,Ds2,K0,K2) :-
 	normaliseClause(C,C1,Ds0,Ds1,K0,K1),
 	numbervars(C1,0,_),
-	writeClause(C1,S2),
+    normaliseRationals(C1, C3),
+	writeClause(C3,S2),
 	read(S1,C2),
 	normaliseClauses(C2,S1,S2,Ds1,Ds2,K1,K2).
 	
@@ -52,8 +58,13 @@ normaliseClause((H :- B), (H :- B4), Ds0,Ds1,K0,K1) :-
 	removeBooleanVars(B,B1,Xs),
 	peBoolExprs(B1,B2,Ds0,Ds1,K0,K1),
 	trueFalseSubst(B2,B3),
-	(intDomain -> integerTrans(B3,B4); B3=B4).
+	(intDomain -> integerTrans(B3,B4); B4=B3).
 normaliseClause(H, (H :- true),Ds,Ds,K,K).
+
+normaliseRationals((H :- B), (H :- B1)) :-
+	!,
+    rationalTransform(B, B1).
+normaliseClause(H, (H :- true)).
 
 
 removeBooleanVars(B,B,_) :-
@@ -274,6 +285,8 @@ integerTransform((A mod B), R, [R>=0, R=<B-1, A=_K*B+R|Bs],Bs) :-
 	!.
 integerTransform(div(A,B), K, [R>=0, R=<B-1, A=K*B+R|Bs],Bs) :-
 	!.
+%integerTransform(abs(A), R, [R>=0|Bs],Bs) :-
+%	!.
 integerTransform(T,T1,Ds0,Ds1) :-
 	T =.. [P|Xs],
 	integerTransformList(Xs,Ys,Ds0,Ds1),
@@ -290,6 +303,26 @@ integerTransCls([(H:-B)|Cs],[(H1:-B2)|Cs1]) :-
 	integerTrans(B1,B2),
 	numbervars((H1:-B2),0,_),
 	integerTransCls(Cs,Cs1).
+
+
+
+
+/*
+transforms (1/2)* D = (2/3)*Y into 3*D = 4*Y, needed for PPL
+*/
+
+rationalTransform((X,Y), (X1, Y1)) :-
+    rationalTransform(X, X1),
+    !,
+    rationalTransform(Y, Y1).
+
+rationalTransform(X,Y) :-
+    constraint(X, _),
+    !,
+	transf(X,Y).
+rationalTransform(X,X).
+
+
 %--------------
 
 conjunct(true,Bs,Bs) :-
