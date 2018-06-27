@@ -14,8 +14,9 @@ main([FIn,FOut,'-int']) :-
 	open(FOut,write,S2),
 	read(S1,C),
 	normaliseClauses(C,S1,S2,Ds,[],0,_),
-	(intDomain -> integerTransCls(Ds,Ds1); Ds1=Ds),
-	addBoolClauses(Ds1,S2),
+	operatorTransCls(Ds,Ds1),
+	(intDomain -> integerTransCls(Ds1,Ds2); Ds1=Ds2),
+	addBoolClauses(Ds2,S2),
 	addNeqClauses(S2),
 	close(S1),
 	close(S2).
@@ -26,7 +27,7 @@ main([FIn,FOut]) :-
 	open(FOut,write,S2),
 	read(S1,C),
 	normaliseClauses(C,S1,S2,Ds,[],0,_),
-	(intDomain -> integerTransCls(Ds,Ds1); Ds1=Ds),
+	operatorTransCls(Ds,Ds1),
 	addBoolClauses(Ds1,S2),
 	addNeqClauses(S2),
 	close(S1),
@@ -46,13 +47,14 @@ normaliseClauses(C,S1,S2,Ds0,Ds2,K0,K2) :-
 	
 %  assume H is already normalised, i.e. p(X1,...,Xn), n >= 0, X1,...,Xn distinct variables
 
-normaliseClause((H :- B), (H :- B4), Ds0,Ds1,K0,K1) :-
+normaliseClause((H :- B), (H :- B5), Ds0,Ds1,K0,K1) :-
 	!,
 	H =.. [_|Xs],
 	removeBooleanVars(B,B1,Xs),
 	peBoolExprs(B1,B2,Ds0,Ds1,K0,K1),
 	trueFalseSubst(B2,B3),
-	(intDomain -> integerTrans(B3,B4); B3=B4).
+	operatorTrans(B3,B4),
+	(intDomain -> integerTrans(B4,B5); B4=B5).
 normaliseClause(H, (H :- true),Ds,Ds,K,K).
 
 
@@ -258,6 +260,35 @@ makeIffClauses(H,B1,B2,B3,B4,[(H :- A1,A2),(H :- A3,A4)|Ds0],Ds0) :-
 makeImpliesClauses(H,NotF1,F3,[(H :- A1),(H :- A2)|Ds0],Ds0) :-
 	makeArgList([NotF1,F3],[A1,A2]).
 	
+operatorTrans(X,Y) :-
+	operatorTransform(X,Y1,Bs,[]),
+	list2Conj(Bs,Bs1),
+	conjunct(Y1,Bs1,Y).
+
+operatorTransform(X,X,Bs,Bs) :-
+	var(X),
+	!.
+operatorTransform((A mod B), R, [R>=0, R=<B-1, A=_K*B+R|Bs],Bs) :-
+	!.
+operatorTransform(div(A,B), K, [R>=0, R=<B-1, A=K*B+R|Bs],Bs) :-
+	!.
+operatorTransform(T,T1,Ds0,Ds1) :-
+	T =.. [P|Xs],
+	operatorTransformList(Xs,Ys,Ds0,Ds1),
+	T1 =.. [P|Ys].
+	
+operatorTransformList([],[],Ds,Ds).
+operatorTransformList([X|Xs],[Y|Ys],Ds0,Ds2) :-
+	operatorTransform(X,Y,Ds0,Ds1),
+	operatorTransformList(Xs,Ys,Ds1,Ds2).
+
+operatorTransCls([],[]).
+operatorTransCls([(H:-B)|Cs],[(H1:-B2)|Cs1]) :-
+	melt((H:-B),(H1:-B1)),
+	operatorTrans(B1,B2),
+	numbervars((H1:-B2),0,_),
+	operatorTransCls(Cs,Cs1).
+	
 integerTrans(X,Y) :-
 	integerTransform(X,Y1,Bs,[]),
 	list2Conj(Bs,Bs1),
@@ -269,10 +300,6 @@ integerTransform(X,X,Bs,Bs) :-
 integerTransform(X<Y,X+1=<Y,Bs,Bs) :-
 	!.
 integerTransform(X>Y,X>=Y+1,Bs,Bs) :-
-	!.
-integerTransform((A mod B), R, [R>=0, R=<B-1, A=_K*B+R|Bs],Bs) :-
-	!.
-integerTransform(div(A,B), K, [R>=0, R=<B-1, A=K*B+R|Bs],Bs) :-
 	!.
 integerTransform(T,T1,Ds0,Ds1) :-
 	T =.. [P|Xs],
