@@ -2,6 +2,10 @@
 
 :- use_module(library(lists)).
 :- use_module(library(terms_vars)).
+%the use of transf may not be appropriate for real division (eg. 1.8/10)
+:- use_module(chclibs(lcm), [transf/2]).
+:- use_module(chclibs(common), _).
+
 
 
 
@@ -41,7 +45,8 @@ normaliseClauses(end_of_file,_,_,Ds,Ds,K,K) :-
 normaliseClauses(C,S1,S2,Ds0,Ds2,K0,K2) :-
 	normaliseClause(C,C1,Ds0,Ds1,K0,K1),
 	numbervars(C1,0,_),
-	writeClause(C1,S2),
+    normaliseRationals(C1, C3),
+	writeClause(C3,S2),
 	read(S1,C2),
 	normaliseClauses(C2,S1,S2,Ds1,Ds2,K1,K2).
 	
@@ -56,6 +61,11 @@ normaliseClause((H :- B), (H :- B5), Ds0,Ds1,K0,K1) :-
 	operatorTrans(B3,B4),
 	(intDomain -> integerTrans(B4,B5); B4=B5).
 normaliseClause(H, (H :- true),Ds,Ds,K,K).
+
+normaliseRationals((H :- B), (H :- B1)) :-
+	!,
+    rationalTransform(B, B1).
+normaliseRationals(H, (H :- true)).
 
 
 removeBooleanVars(B,B,_) :-
@@ -317,6 +327,29 @@ integerTransCls([(H:-B)|Cs],[(H1:-B2)|Cs1]) :-
 	integerTrans(B1,B2),
 	numbervars((H1:-B2),0,_),
 	integerTransCls(Cs,Cs1).
+
+
+
+
+
+% transforms (1/2)* D = (2/3)*Y into 3*D = 4*Y, needed for PPL
+
+rationalTransform(X,X) :-
+	var(X),
+	!.
+rationalTransform((X,Y), (X1, Y1)) :-
+	!,
+    rationalTransform(X, X1),
+    rationalTransform(Y, Y1).
+rationalTransform(true,true) :-
+	!.
+rationalTransform(X,Y) :-
+    constraint(X, _),
+    !,
+	transf(X,Y).
+rationalTransform(X,X).
+
+
 %--------------
 
 conjunct(true,Bs,Bs) :-
@@ -368,10 +401,10 @@ newPred(P,PK,K0,K1) :-
 	name(PK,PKN),
 	K1 is K0+1.
 	
-list2Conj([A], (A)):- !.
-list2Conj([A|R], (A,R1)):- !,
-	list2Conj(R, R1).
-list2Conj([], (true)). % meaning true
+%list2Conj([A], (A)):- !.
+%list2Conj([A|R], (A,R1)):- !,
+%	list2Conj(R, R1).
+%list2Conj([], (true)). % meaning true
 
 
 addNeqClauses(S) :-
