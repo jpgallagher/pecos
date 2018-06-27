@@ -18,14 +18,9 @@ main([FIn,FOut,'-int']) :-
 	open(FOut,write,S2),
 	read(S1,C),
 	normaliseClauses(C,S1,S2,Ds,[],0,_),
-<<<<<<< HEAD
 	operatorTransCls(Ds,Ds1),
 	(intDomain -> integerTransCls(Ds1,Ds2); Ds1=Ds2),
 	addBoolClauses(Ds2,S2),
-=======
-	(intDomain -> integerTransCls(Ds,Ds1); Ds1=Ds),
-	addBoolClauses(Ds1,S2),
->>>>>>> daa0b9fac21f476c23bcd7a6f0dc870a532197be
 	addNeqClauses(S2),
 	close(S1),
 	close(S2).
