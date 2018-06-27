@@ -18,7 +18,7 @@ main([FIn,FOut,'-int']) :-
 	open(FIn,read,S1),
 	open(FOut,write,S2),
 	read(S1,C),
-	normaliseClauses(C,S1,S2,Ds,[],0,_), write(C), nl,
+	normaliseClauses(C,S1,S2,Ds,[],0,_),
 	(intDomain -> integerTransCls(Ds,Ds1); Ds1=Ds),
 	addBoolClauses(Ds1,S2),
 	addNeqClauses(S2),
@@ -64,7 +64,7 @@ normaliseClause(H, (H :- true),Ds,Ds,K,K).
 normaliseRationals((H :- B), (H :- B1)) :-
 	!,
     rationalTransform(B, B1).
-normaliseClause(H, (H :- true)).
+normaliseRationals(H, (H :- true)).
 
 
 removeBooleanVars(B,B,_) :-
