@@ -149,7 +149,7 @@ peBoolExpr(And,B1,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 peBoolExpr(if(B,Then,Else),BIf,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 	!,
 	peBoolExprList([B,not(B),Then,Else],[B1,NotB1,Then1,Else1],Ds0,Ds1,Cs0,Cs1,K0,K1),
-	varset(if(B,Then,Else),Xs),
+	varset(if(B1,Then1,Else1),Xs),
 	newPred(if,IfK,K1,K2),
 	BIf =.. [IfK|Xs],
 	makeIfClauses(BIf,B1,NotB1,Then1,Else1,Ds1,Ds2).
@@ -186,7 +186,7 @@ peArithExpr(if(B,Then,Else),R,Ds0,Ds3,[BIf|Cs0],Cs2,K0,K3) :-
 	!,
 	peBoolExprList([B,not(B)],[B1,NotB1],Ds0,Ds1,Cs0,Cs1,K0,K1),
 	peArithExprList([Then,Else],[Then1,Else1],Ds1,Ds2,Cs1,Cs2,K1,K2),
-	varset(if(B,Then,Else),Xs),
+	varset(if(B1,Then1,Else1),Xs),
 	newPred(if,IfK,K2,K3),
 	BIf =.. [IfK,R|Xs],
 	makeArithIfClauses(BIf,R,B1,NotB1,Then1,Else1,Ds2,Ds3).
