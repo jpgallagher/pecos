@@ -60,25 +60,25 @@ def parse_with_z3(
 
     # if simplify:
     tactic = z3.Tactic("horn-simplify")
-    #simplified = tactic(
-    #    goals,
-    #    "xform.inline_eager",
-    #   simplify,
-    #   "xform.inline_linear",
-    #    simplify,
-    #   "xform.slice",
-    #    simplify,
-    #    "xform.coi",
-    #    simplify,
-    #    "xform.compress_unbound",
-    #    simplify,
-    #    "xform.subsumption_checker",
-    #    simplify,
-    #    "xform.tail_simplifier_pve",
-    #    simplify
-    #)
-    # else:
-    simplified = [goals]
+    simplified = tactic(
+        goals,
+        "xform.inline_eager",
+       simplify,
+       "xform.inline_linear",
+        simplify,
+       "xform.slice",
+        simplify,
+        "xform.coi",
+        simplify,
+        "xform.compress_unbound",
+        simplify,
+        "xform.subsumption_checker",
+        simplify,
+        "xform.tail_simplifier_pve",
+        simplify
+    )
+    #else:
+    #simplified = [goals]
     clauses = []
     queries = []
     if len(simplified) == 0:
