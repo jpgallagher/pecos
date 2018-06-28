@@ -18,7 +18,7 @@ main([FIn,FOut,'-int']) :-
 	open(FOut,write,S2),
 	read(S1,C),
 	normaliseClauses(C,S1,S2,Ds,[],0,_),
-	operatorTransCls(Ds,Ds1),
+	normaliseRationalClauses(Ds,Ds1),
 	(intDomain -> integerTransCls(Ds1,Ds2); Ds1=Ds2),
 	addBoolClauses(Ds2,S2),
 	addNeqClauses(S2),
@@ -31,7 +31,7 @@ main([FIn,FOut]) :-
 	open(FOut,write,S2),
 	read(S1,C),
 	normaliseClauses(C,S1,S2,Ds,[],0,_),
-	operatorTransCls(Ds,Ds1),
+	normaliseRationalClauses(Ds,Ds1),
 	addBoolClauses(Ds1,S2),
 	addNeqClauses(S2),
 	close(S1),
@@ -45,7 +45,7 @@ normaliseClauses(end_of_file,_,_,Ds,Ds,K,K) :-
 normaliseClauses(C,S1,S2,Ds0,Ds2,K0,K2) :-
 	normaliseClause(C,C1,Ds0,Ds1,K0,K1),
 	numbervars(C1,0,_),
-    normaliseRationals(C1, C3),
+    normaliseRationals(C1,C3),
 	writeClause(C3,S2),
 	read(S1,C2),
 	normaliseClauses(C2,S1,S2,Ds1,Ds2,K1,K2).
@@ -56,9 +56,10 @@ normaliseClause((H :- B), (H :- B5), Ds0,Ds1,K0,K1) :-
 	!,
 	H =.. [_|Xs],
 	removeBooleanVars(B,B1,Xs),
-	peBoolExprs(B1,B2,Ds0,Ds1,K0,K1),
-	trueFalseSubst(B2,B3),
-	operatorTrans(B3,B4),
+	peBoolExpr(B1,B2,Ds0,Ds1,Cs0,[],K0,K1),
+	list2Conj(Cs0,Cs1),
+	conjunct(Cs1,B2,B3),
+	trueFalseSubst(B3,B4),
 	(intDomain -> integerTrans(B4,B5); B4=B5).
 normaliseClause(H, (H :- true),Ds,Ds,K,K).
 
@@ -67,6 +68,10 @@ normaliseRationals((H :- B), (H :- B1)) :-
     rationalTransform(B, B1).
 normaliseRationals(H, (H :- true)).
 
+normaliseRationalClauses([],[]).
+normaliseRationalClauses([C|Cs],[C1|Cs1]) :-
+	normaliseRationals(C,C1),
+	normaliseRationalClauses(Cs,Cs1).
 
 removeBooleanVars(B,B,_) :-
 	var(B),
@@ -117,73 +122,97 @@ substTrueFalseList([X|Xs],[Y|Ys]) :-
 	substTrueFalseList(Xs,Ys).
 
 
-peBoolExprs(B,B,Ds,Ds,K,K) :-
+peBoolExpr(B,B,Ds,Ds,Cs,Cs,K,K) :-
 	var(B),
 	!.
-peBoolExprs((B,Bs),Bs3,Ds0,Ds2,K0,K2) :-
+peBoolExpr((B,Bs),Bs3,Ds0,Ds2,Cs0,Cs2,K0,K2) :-
 	!,
-	peBoolExpr(B,B1,Ds0,Ds1,K0,K1),
-	peBoolExprs(Bs,Bs2,Ds1,Ds2,K1,K2),
+	peBoolExpr(B,B1,Ds0,Ds1,Cs0,Cs1,K0,K1),
+	peBoolExpr(Bs,Bs2,Ds1,Ds2,Cs1,Cs2,K1,K2),
 	conjunct(B1,Bs2,Bs3).
-peBoolExprs(B,B1,Ds0,Ds1,K0,K1) :-
-	peBoolExpr(B,B1,Ds0,Ds1,K0,K1).
-
-peBoolExpr(B,B,Ds,Ds,K,K) :-
-	var(B),
-	!.
-peBoolExpr(Or,B1,Ds0,Ds2,K0,K2) :-
+peBoolExpr(Or,B1,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 	Or =.. [or|Ts],
 	!,
-	peBoolExprList(Ts,Ts1,Ds0,Ds1,K0,K1),
+	peBoolExprList(Ts,Ts1,Ds0,Ds1,Cs0,Cs1,K0,K1),
 	varset(Ts,Xs),
 	newPred(or,OrK,K1,K2),
 	B1 =.. [OrK|Xs],
 	makeOrClauses(B1,Ts1,Ds1,Ds2).
-peBoolExpr(And,B1,Ds0,Ds2,K0,K2) :-
+peBoolExpr(And,B1,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 	And =.. [and|Ts],
 	!,
-	peBoolExprList(Ts,Ts1,Ds0,Ds1,K0,K1),
+	peBoolExprList(Ts,Ts1,Ds0,Ds1,Cs0,Cs1,K0,K1),
 	varset(Ts,Xs),
 	newPred(and,AndK,K1,K2),
 	B1 =.. [AndK|Xs],
 	makeAndClauses(B1,Ts1,Ds1,Ds2).
-peBoolExpr(if(B,Then,Else),BIf,Ds0,Ds2,K0,K2) :-
+peBoolExpr(if(B,Then,Else),BIf,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 	!,
-	peBoolExprList([B,not(B),Then,Else],[B1,NotB1,Then1,Else1],Ds0,Ds1,K0,K1),
+	peBoolExprList([B,not(B),Then,Else],[B1,NotB1,Then1,Else1],Ds0,Ds1,Cs0,Cs1,K0,K1),
 	varset(if(B,Then,Else),Xs),
 	newPred(if,IfK,K1,K2),
 	BIf =.. [IfK|Xs],
 	makeIfClauses(BIf,B1,NotB1,Then1,Else1,Ds1,Ds2).
-peBoolExpr(not(B),B1,Ds0,Ds1,K0,K1) :-
-	%nonvar(B),
+peBoolExpr(not(B),B1,Ds0,Ds1,Cs0,Cs1,K0,K1) :-
 	!,
 	nnf(B,NotB),
-	peBoolExpr(NotB,B1,Ds0,Ds1,K0,K1).
-peBoolExpr('=>'(F1,F2),BImplies,Ds0,Ds1,K0,K2) :-
+	peBoolExpr(NotB,B1,Ds0,Ds1,Cs0,Cs1,K0,K1).
+peBoolExpr('=>'(F1,F2),BImplies,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 	!,
-	peBoolExprList([not(F1),F2],[NotF1,F3],Ds0,Ds2,K0,K1),
+	peBoolExprList([not(F1),F2],[NotF1,F3],Ds0,Ds1,Cs0,Cs1,K0,K1),
 	varset('=>'(F1,F2),Xs),
 	newPred(implies,BImplies,K1,K2),
 	BImplies =.. [BImplies|Xs],
 	makeImpliesClauses(BImplies,NotF1,F3,Ds1,Ds2).
-peBoolExpr(iff(B1,B2),BIff,Ds0,Ds2,K0,K2) :-
+peBoolExpr(iff(B1,B2),BIff,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 	!,
-	peBoolExprList([B1,B2,not(B1),not(B2)],[B3,B4,B5,B6],Ds0,Ds1,K0,K1),
+	peBoolExprList([B1,B2,not(B1),not(B2)],[B3,B4,B5,B6],Ds0,Ds1,Cs0,Cs1,K0,K1),
 	varset(iff(B1,B2),Xs),
 	newPred(iff,IffK,K1,K2),
 	BIff =.. [IffK|Xs],
 	makeIffClauses(BIff,B3,B4,B5,B6,Ds1,Ds2).
-peBoolExpr(X=V,B1,Ds0,Ds1,K0,K1) :-
-	nonvar(V),
-	V = if(B,Then,Else),
+peBoolExpr(B,B1,Ds0,Ds1,Cs0,Cs1,K0,K1) :-
+	B =.. [RelOp|Xs],
+	member(RelOp,['=','>','<','>=','=<']),
 	!,
-	peBoolExpr(if(B,(X=Then),(X=Else)),B1,Ds0,Ds1,K0,K1).
-peBoolExpr(B,B,Ds,Ds,K,K).
+	peArithExprList(Xs,Ys,Ds0,Ds1,Cs0,Cs1,K0,K1),
+	B1 =.. [RelOp|Ys].
+peBoolExpr(B,B,Ds,Ds,Cs,Cs,K,K). % should be only user predicates that reach this clause
 
-peBoolExprList([],[],Ds,Ds,K,K).
-peBoolExprList([B|Bs],[B1|Bs1],Ds0,Ds2,K0,K2) :-
-	peBoolExpr(B,B1,Ds0,Ds1,K0,K1),
-	peBoolExprList(Bs,Bs1,Ds1,Ds2,K1,K2).
+peArithExpr(B,B,Ds,Ds,Cs,Cs,K,K) :-
+	var(B),
+	!.
+peArithExpr(if(B,Then,Else),R,Ds0,Ds3,[BIf|Cs0],Cs2,K0,K3) :-
+	!,
+	peBoolExprList([B,not(B)],[B1,NotB1],Ds0,Ds1,Cs0,Cs1,K0,K1),
+	peArithExprList([Then,Else],[Then1,Else1],Ds1,Ds2,Cs1,Cs2,K1,K2),
+	varset(if(B,Then,Else),Xs),
+	newPred(if,IfK,K2,K3),
+	BIf =.. [IfK,R|Xs],
+	makeArithIfClauses(BIf,R,B1,NotB1,Then1,Else1,Ds2,Ds3).
+peArithExpr((A mod B), R, Ds0,Ds1, [R>=0, R=<D-1, C=_K*D+R|Cs0],Cs1,K0,K1) :-
+	!,
+	peArithExprList([A,B],[C,D],Ds0,Ds1,Cs0,Cs1,K0,K1).
+peArithExpr(div(A,B), K, Ds0,Ds1, [R>=0, R=<D-1, C=K*D+R|Cs0],Cs1,K0,K1) :-
+	!,
+	peArithExprList([A,B],[C,D],Ds0,Ds1,Cs0,Cs1,K0,K1).
+peArithExpr(E,E1, Ds0,Ds1, Cs0,Cs1,K0,K1) :-
+	E =.. [Op|Xs],
+	member(Op,['+','-','/','*']),
+	!,
+	peArithExprList(Xs,Ys,Ds0,Ds1,Cs0,Cs1,K0,K1),
+	E1 =.. [Op|Ys].
+peArithExpr(E,E,Ds,Ds,Cs,Cs,K,K). 	% catch-all but should not be needed
+
+peBoolExprList([],[],Ds,Ds,Cs,Cs,K,K).
+peBoolExprList([B|Bs],[B1|Bs1],Ds0,Ds2,Cs0,Cs2,K0,K2) :-
+	peBoolExpr(B,B1,Ds0,Ds1,Cs0,Cs1,K0,K1),
+	peBoolExprList(Bs,Bs1,Ds1,Ds2,Cs1,Cs2,K1,K2).
+	
+peArithExprList([],[],Ds,Ds,Cs,Cs,K,K).
+peArithExprList([B|Bs],[B1|Bs1],Ds0,Ds2,Cs0,Cs2,K0,K2) :-
+	peArithExpr(B,B1,Ds0,Ds1,Cs0,Cs1,K0,K1),
+	peArithExprList(Bs,Bs1,Ds1,Ds2,Cs1,Cs2,K1,K2).
 	
 nnf(X,X=0) :-
 	var(X),
@@ -213,6 +242,9 @@ nnf(If,If1) :-
 	!,
 	nnfList([Then,Else],[NotThen,NotElse]),
 	If1 =.. [if,B,NotThen,NotElse].
+nnf(iff(B1,B2),Iff1) :-
+	!,
+	nnf(or(and(B1,not(B2)),and(not(B1),B2)),Iff1).
 nnf(X >= Y, X < Y) :-
 	!.
 nnf(X =< Y, X > Y) :-
@@ -261,8 +293,12 @@ makeArgList([X|Xs],[Y|Ys]) :-
 	makeArgList(Xs,Ys).
 
 
+
 makeIfClauses(H,B,NotB,Then,Else,[(H :- (B1,Then1)),(H :- (NotB1,Else1))|Ds0],Ds0) :-
 	makeArgList([B,Then,NotB,Else],[B1,Then1,NotB1,Else1]).
+	
+makeArithIfClauses(H,R,B,NotB,Then,Else,[(H :- (B1,Then1)),(H :- (NotB1,Else1))|Ds0],Ds0) :-
+	makeArgList([B,R=Then,NotB,R=Else],[B1,Then1,NotB1,Else1]).
 
 makeIffClauses(H,B1,B2,B3,B4,[(H :- A1,A2),(H :- A3,A4)|Ds0],Ds0) :-
 	makeArgList([B1,B2,B3,B4],[A1,A2,A3,A4]).
@@ -270,34 +306,7 @@ makeIffClauses(H,B1,B2,B3,B4,[(H :- A1,A2),(H :- A3,A4)|Ds0],Ds0) :-
 makeImpliesClauses(H,NotF1,F3,[(H :- A1),(H :- A2)|Ds0],Ds0) :-
 	makeArgList([NotF1,F3],[A1,A2]).
 	
-operatorTrans(X,Y) :-
-	operatorTransform(X,Y1,Bs,[]),
-	list2Conj(Bs,Bs1),
-	conjunct(Y1,Bs1,Y).
 
-operatorTransform(X,X,Bs,Bs) :-
-	var(X),
-	!.
-operatorTransform((A mod B), R, [R>=0, R=<B-1, A=_K*B+R|Bs],Bs) :-
-	!.
-operatorTransform(div(A,B), K, [R>=0, R=<B-1, A=K*B+R|Bs],Bs) :-
-	!.
-operatorTransform(T,T1,Ds0,Ds1) :-
-	T =.. [P|Xs],
-	operatorTransformList(Xs,Ys,Ds0,Ds1),
-	T1 =.. [P|Ys].
-	
-operatorTransformList([],[],Ds,Ds).
-operatorTransformList([X|Xs],[Y|Ys],Ds0,Ds2) :-
-	operatorTransform(X,Y,Ds0,Ds1),
-	operatorTransformList(Xs,Ys,Ds1,Ds2).
-
-operatorTransCls([],[]).
-operatorTransCls([(H:-B)|Cs],[(H1:-B2)|Cs1]) :-
-	melt((H:-B),(H1:-B1)),
-	operatorTrans(B1,B2),
-	numbervars((H1:-B2),0,_),
-	operatorTransCls(Cs,Cs1).
 	
 integerTrans(X,Y) :-
 	integerTransform(X,Y1,Bs,[]),
