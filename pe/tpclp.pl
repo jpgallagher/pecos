@@ -50,7 +50,7 @@ main(ArgV) :-
 	%nl(OutS), showallfacts(OutS), nl(OutS),
 	close(OutS),
 	ppl_finalize,
-	halt(1).
+	halt(100).
 
 % get_options/3 provided by Michael Leuschel
 get_options([],[],[]).
@@ -117,7 +117,7 @@ checkCounterExample(Head) :-
 foundCEx(Head) :-	
 	findCEx,
 	isFalsePred(Head),
-	halt(0).
+	halt(101).
 	
 isFalsePred(false) :-
 	!.

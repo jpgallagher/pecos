@@ -41,7 +41,7 @@ checkCounterExample(no,_) :-
 	!,
 	%write('Program is safe'),
 	%nl,
-	halt(1).
+	halt(100).
 checkCounterExample(Cex,F) :-
 	load_file(F),
 	(checkTrace([false],[],[Cex]);
@@ -51,13 +51,13 @@ checkCounterExample(Cex,F) :-
 	yices_exit,
 	%write('Program is unsafe'),
 	%nl,
-	halt(0).
+	halt(101).
 checkCounterExample(_,_) :-
 	yices_exit,
 	%write('Program might be unsafe'),
 	%nl,
 	%nl,
-	halt(2).
+	halt(102).
 	
 checkTrace(A,_,Trace) :-
 	andTreeConstraint(A,Trace,Cs),
