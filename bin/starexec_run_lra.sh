@@ -2,15 +2,19 @@
 
 # $1 = input file
 
-PECOS=".."
-LIB="$PECOS/ciao_bundles/build/bin"
-PE="$PECOS/pe/CHC-COMP"
-PRE="$PECOS/pe/CHC-COMP"
+# $1 = input file
+PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
 
-export CIAOPATH="$PECOS/ciao_bundles"
-export CIAOROOT="$PECOS/bin/ciao"
-export PYTHONPATH="$PECOS/z3/build/python"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3
+PE="$PECOS/pe"
+SMT2CHC="$PECOS/smt2chc"
+LIB="/Users/jpg/ciao/build/bin"
+
+
+#export CIAOPATH="$CS0/ciao_bundles"
+#export CIAOROOT="$CS0/bin/ciao"
+#export PYTHONPATH="$CS0/z3/build/python"
+#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
+
 
 # $1 = input file
 
@@ -65,8 +69,8 @@ fi
 
 #echo $1
 # Translation from competition format to Prolog-readable form
-python $PRE/format/format.py --split_queries True "$1" > "$resultdir/$f.pl"
-$PRE/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" 
+python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl"
+$SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" 
 prog="$resultdir/$f.norm.pl"
 
 
@@ -75,25 +79,25 @@ $LIB/raf "$prog" false "$resultdir/$f.raf.pl"
 prog="$resultdir/$f.raf.pl"
 
 # search for counterexamples first for 15 seconds
-tlimit="0.25m"
-result="unknown"
-$LIB/qa "$prog" -query false -ans -o $resultdir/$f.qa.pl
-timeout $tlimit $PE/tpclp -prg "$resultdir/$f.qa.pl" -cex
-ret=$?
-terminate=0
-if [[ $ret -eq 0 ]]; then
-    	terminate=1
-    elif [[ $ret -eq 1 ]]; then
-    	terminate=1
-    elif [[ $retval -eq 2 ]]; then
-		terminate=1
-	else
-		terminate=0
-fi
+#tlimit="0.25m"
+#result="unknown"
+#timeout $tlimit $PE/tpclp -prg "$prog" -cex
+#ret=$?
+#terminate=0
+#if [[ $ret -eq 0 ]]; then
+#    	terminate=1
+#    elif [[ $ret -eq 1 ]]; then
+#    	terminate=1
+#    elif [[ $retval -eq 2 ]]; then
+#		terminate=1
+#	else
+#		terminate=0
+#fi
 
 # set very large iteration limit for competition
 k=1000
 i=1
+terminate=0
 until [[ $k -eq 0 || $terminate -eq 1 ]];
 do
    #echo "Iteration" $i
