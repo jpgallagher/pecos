@@ -33,7 +33,7 @@ function spec() {
 
 function checksafe() {
     local file=$1
-    $PE/counterExample -prg $file -cex "traceterm.out" -qa -type int
+    $PE/counterExample -prg $file -cex "traceterm.out" -qa -type int || exit 1
     retval=$? 
     # return the result from counterExample1
     #if [[ $retval -eq 0 ]]; then
@@ -78,7 +78,7 @@ prog="$resultdir/$f.raf.pl"
 # search for counterexamples first for 15 seconds
 #tlimit="0.25m"
 #result="unknown"
-#timeout $tlimit $PE/tpclp -prg "$prog" -cex
+#timeout $tlimit $PE/tpclp -prg "$prog" -cex || exit 1
 #ret=$?
 #terminate=0
 #if [[ $ret -eq 100 ]]; then
