@@ -2,8 +2,7 @@ import sys
 import z3
 import argparse
 
-#from util import Skip, Exc, eprint
-from util import Exc, eprint
+from util import Skip, Exc, eprint
 from util import write_clauses_smt2, write_clauses_datalog
 import check
 import fix
