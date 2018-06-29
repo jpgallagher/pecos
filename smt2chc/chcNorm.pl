@@ -52,7 +52,7 @@ normaliseClauses(C,S1,S2,Ds0,Ds2,K0,K2) :-
 	
 %  assume H is already normalised, i.e. p(X1,...,Xn), n >= 0, X1,...,Xn distinct variables
 
-normaliseClause((H :- B), (H :- B5), Ds0,Ds1,K0,K1) :-
+normaliseClause((H :- B), (H1 :- B5), Ds0,Ds1,K0,K1) :-
 	!,
 	H =.. [_|Xs],
 	removeBooleanVars(B,B1,Xs),
@@ -60,6 +60,7 @@ normaliseClause((H :- B), (H :- B5), Ds0,Ds1,K0,K1) :-
 	list2Conj(Cs0,Cs1),
 	conjunct(Cs1,B2,B3),
 	trueFalseSubst(B3,B4),
+	trueFalseSubst(H,H1),
 	(intDomain -> integerTrans(B4,B5); B4=B5).
 normaliseClause(H, (H :- true),Ds,Ds,K,K).
 
@@ -167,10 +168,11 @@ peBoolExpr('=>'(F1,F2),BImplies,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 peBoolExpr(iff(B1,B2),BIff,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 	!,
 	peBoolExprList([B1,B2,not(B1),not(B2)],[B3,B4,B5,B6],Ds0,Ds1,Cs0,Cs1,K0,K1),
-	varset(iff(B1,B2),Xs),
-	newPred(iff,IffK,K1,K2),
-	BIff =.. [IffK|Xs],
-	makeIffClauses(BIff,B3,B4,B5,B6,Ds1,Ds2).
+	(iffUnify(B3,B4) -> BIff=(B3=B4), Ds1=Ds2, K1=K2; 
+		varset(iff(B3,B4),Xs),
+		newPred(iff,IffK,K1,K2),
+		BIff =.. [IffK|Xs],
+		makeIffClauses(BIff,B3,B4,B5,B6,Ds1,Ds2)).
 peBoolExpr(B,B1,Ds0,Ds1,Cs0,Cs1,K0,K1) :-
 	B =.. [RelOp|Xs],
 	member(RelOp,['=','>','<','>=','=<']),
@@ -178,6 +180,12 @@ peBoolExpr(B,B1,Ds0,Ds1,Cs0,Cs1,K0,K1) :-
 	peArithExprList(Xs,Ys,Ds0,Ds1,Cs0,Cs1,K0,K1),
 	B1 =.. [RelOp|Ys].
 peBoolExpr(B,B,Ds,Ds,Cs,Cs,K,K). % should be only user predicates that reach this clause
+
+iffUnify(X,Y) :-
+	(var(X); atomic(X)),
+	(var(Y); atomic(Y)),
+	!.
+	
 
 peArithExpr(B,B,Ds,Ds,Cs,Cs,K,K) :-
 	var(B),
