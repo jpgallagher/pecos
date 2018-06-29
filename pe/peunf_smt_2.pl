@@ -525,10 +525,13 @@ simplify(Cs,Zs,Cs1) :-
 numberVersions([version(P/N,[])|AllVersions],P/N,K,[nversion(P/N,[],P)|NVersions]) :-
 	!, % initial goal not renamed
 	numberVersions(AllVersions,P/N,K,NVersions).
+numberVersions([version(Q/M,[])|AllVersions],P/N,K,[nversion(Q/M,[],Q)|NVersions]) :-
+	!, % versions with trivial property not renamed
+	numberVersions(AllVersions,P/N,K,NVersions).
 numberVersions([version(Q/M,Ids)|AllVersions],P/N,K,[nversion(Q/M,Ids,QK)|NVersions]) :-
 	name(K,NK),
 	name(Q,QN),
-	append(QN,[95, 95,95|NK],QKN),
+	append(QN,[95,95|NK],QKN),
 	name(QK,QKN),
 	K1 is K+1,
 	numberVersions(AllVersions,P/N,K1,NVersions).
