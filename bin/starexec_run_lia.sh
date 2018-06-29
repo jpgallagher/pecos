@@ -66,7 +66,7 @@ fi
 
 #echo $1
 # Translation from competition format to Prolog-readable form
-python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl"
+python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl" || exit 1
 $SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" -int || exit 1
 prog="$resultdir/$f.norm.pl"
 
@@ -81,13 +81,11 @@ prog="$resultdir/$f.raf.pl"
 #timeout $tlimit $PE/tpclp -prg "$prog" -cex
 #ret=$?
 #terminate=0
-#if [[ $ret -eq 0 ]]; then
+#if [[ $ret -eq 100 ]]; then
 #    	terminate=1
-#    elif [[ $ret -eq 1 ]]; then
+#    elif [[ $ret -eq 101 ]]; then
 #    	terminate=1
-#    elif [[ $retval -eq 2 ]]; then
-#		terminate=1
-#	else
+#	 else
 #		terminate=0
 #fi
 
@@ -103,7 +101,7 @@ do
    #echo "Checking safety"
    checksafe "$prog"
    ret=$?
-   if [ $ret -eq 0 -o $ret -eq 1 ]; then
+   if [ $ret -eq 100 -o $ret -eq 101 ]; then
 		terminate=1
    else
 		k=`expr $k \- 1`
@@ -116,11 +114,11 @@ do
 done 
 
 
-if [[ $ret -eq 0 ]]; then
+if [[ $ret -eq 101 ]]; then
     	echo "unknown" 
-    elif [[ $ret -eq 1 ]]; then
+    elif [[ $ret -eq 100 ]]; then
     	echo "sat" 
-    elif [[ $ret -eq 2 ]]; then
+    elif [[ $ret -eq 102 ]]; then
 	echo "unknown" 
 fi
 
