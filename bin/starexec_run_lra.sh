@@ -33,8 +33,12 @@ function spec() {
 
 function checksafe() {
     local file=$1
-    $PE/counterExample -prg $file -cex "traceterm.out" -qa || exit 1
+    $PE/counterExample -prg $file -cex "traceterm.out" -qa 
     retval=$? 
+	if [[ $retval -ne 100 && $retval -ne 101 && $retval -ne 102 ]];
+	then
+		exit 1
+	fi 
     # return the result from counterExample1
     #if [[ $retval -eq 101 ]]; then
     #	echo "UNSAFE" 

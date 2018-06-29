@@ -22,8 +22,8 @@ function spec() {
    #echo "Performing query transformation"
    $LIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
    #echo "Computing widening thresholds"
-   $LIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
-   #$PE/props -prg "$resultdir/$f.qa.pl" -l 1 -o wut.props
+   #$LIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
+   $PE/props -prg "$resultdir/$f.qa.pl" -l 1 -o wut.props || exit 1
    
    #echo "Computing convex polyhedron approximation of QA clauses"
    $LIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
@@ -33,8 +33,12 @@ function spec() {
 
 function checksafe() {
     local file=$1
-    $PE/counterExample -prg $file -cex "traceterm.out" -qa -type int || exit 1
+    $PE/counterExample -prg $file -cex "traceterm.out" -qa -type int 
     retval=$? 
+	if [[ $retval -ne 100 && $retval -ne 101 && $retval -ne 102 ]];
+	then
+		exit 1
+	fi
     # return the result from counterExample1
     #if [[ $retval -eq 0 ]]; then
     #	echo "UNSAFE" 
