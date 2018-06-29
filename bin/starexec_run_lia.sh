@@ -8,7 +8,6 @@ SMT2CHC="$PECOS/smt2chc"
 LIB="/Users/jpg/ciao/build/bin"
 
 
-
 #export CIAOPATH="$CS0/ciao_bundles"
 #export CIAOROOT="$CS0/bin/ciao"
 #export PYTHONPATH="$CS0/z3/build/python"
@@ -69,7 +68,6 @@ fi
 # Translation from competition format to Prolog-readable form
 python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl"
 $SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" -int || exit 1
-
 prog="$resultdir/$f.norm.pl"
 
 

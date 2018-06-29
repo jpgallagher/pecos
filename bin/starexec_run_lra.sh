@@ -1,8 +1,6 @@
 #!/bin/sh
 
 # $1 = input file
-
-# $1 = input file
 PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
 
 PE="$PECOS/pe"
@@ -16,22 +14,21 @@ LIB="/Users/jpg/ciao/build/bin"
 #export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
 
 
-# $1 = input file
 
 # constraint specialisation
 function spec() {
    local infile=$1
    local outfile=$2
    #echo "Performing query transformation"
-   $LIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl
+   $LIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
    #echo "Computing widening thresholds"
-   $LIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props
+   $LIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
    #$PE/props -prg "$resultdir/$f.qa.pl" -l 1 -o wut.props
    
    #echo "Computing convex polyhedron approximation of QA clauses"
-   $LIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl
+   $LIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
    #echo "Specialise clauses"
-   $LIB/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile
+   $LIB/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile || exit 1
 }
 
 function checksafe() {
@@ -52,8 +49,8 @@ function checksafe() {
 function pe() {
     local file=$1
     local outfile=$2
-    $PE/props -prg "$file" -l 3 -o "$resultdir/$f.props"
-    $PE/peunf_smt_2 -prg "$file" -entry false -props "$resultdir/$f.props" -o "$resultdir/$f.pe.pl" 
+    $PE/props -prg "$file" -l 3 -o "$resultdir/$f.props" || exit 1
+    $PE/peunf_smt_2 -prg "$file" -entry false -props "$resultdir/$f.props" -o "$resultdir/$f.pe.pl" || exit 1
 }
 
 #=================
@@ -70,12 +67,12 @@ fi
 #echo $1
 # Translation from competition format to Prolog-readable form
 python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl"
-$SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" 
+$SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" || exit 1
 prog="$resultdir/$f.norm.pl"
 
 
 #echo "Removal of redundant arguments"
-$LIB/raf "$prog" false "$resultdir/$f.raf.pl"
+$LIB/raf "$prog" false "$resultdir/$f.raf.pl" || exit 1
 prog="$resultdir/$f.raf.pl"
 
 # search for counterexamples first for 15 seconds
@@ -112,7 +109,7 @@ do
 		k=`expr $k \- 1`
 		i=`expr $i \+ 1`
 		#echo "Partial evaluation"
-		pe "$resultdir/$f.sp.pl" "$resultdir/$f.pe.pl"
+		pe "$resultdir/$f.sp.pl" "$resultdir/$f.pe.pl" || exit 1
 		prog="$resultdir/$f.pe.pl"
 		
    fi
