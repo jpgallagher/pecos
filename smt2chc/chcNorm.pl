@@ -55,7 +55,8 @@ normaliseClauses(C,S1,S2,Ds0,Ds2,K0,K2) :-
 normaliseClause((H :- B), (H1 :- B5), Ds0,Ds1,K0,K1) :-
 	!,
 	H =.. [_|Xs],
-	removeBooleanVars(B,B1,Xs),
+	userPredArgs(B,Xs,Ys),
+	removeBooleanVars(B,B1,Ys),
 	peBoolExpr(B1,B2,Ds0,Ds1,Cs0,[],K0,K1),
 	list2Conj(Cs0,Cs1),
 	conjunct(Cs1,B2,B3),
@@ -73,6 +74,27 @@ normaliseRationalClauses([],[]).
 normaliseRationalClauses([C|Cs],[C1|Cs1]) :-
 	normaliseRationals(C,C1),
 	normaliseRationalClauses(Cs,Cs1).
+	
+userPredArgs(B,Xs,Xs) :-
+	var(B),
+	!.
+userPredArgs((B,Bs),Xs0,Xs2) :-
+	!,
+	userPredArgs(B,Xs0,Xs1),
+	userPredArgs(Bs,Xs1,Xs2).
+userPredArgs(B,Xs,Xs) :-
+	isConstraint(B),
+	!.
+userPredArgs(B,Xs0,Xs1) :-
+	B =.. [_|Ys],
+	append(Ys,Xs0,Xs1).
+	
+isConstraint(B) :-
+	functor(B,F,_),
+	member(F,['=','>','<','>=','=<', or, and, if, iff, true, false, '=>']).
+
+
+	
 
 removeBooleanVars(B,B,_) :-
 	var(B),
@@ -175,7 +197,7 @@ peBoolExpr(iff(B1,B2),BIff,Ds0,Ds2,Cs0,Cs1,K0,K2) :-
 		makeIffClauses(BIff,B3,B4,B5,B6,Ds1,Ds2)).
 peBoolExpr(B,B1,Ds0,Ds1,Cs0,Cs1,K0,K1) :-
 	B =.. [RelOp|Xs],
-	member(RelOp,['=','>','<','>=','=<']),
+	member(RelOp,['=','>','<','>=','=<',neq]),
 	!,
 	peArithExprList(Xs,Ys,Ds0,Ds1,Cs0,Cs1,K0,K1),
 	B1 =.. [RelOp|Ys].
@@ -243,8 +265,8 @@ nnf(Or,And) :-
 	And =.. [and|Ys].
 nnf('=>'(F1,F2),F) :-
 	!,
-	nnf(F1,NotF1),
-	F =.. [and,NotF1,F2].
+	nnf(F2,NotF2),
+	F =.. [and,F1,NotF2].
 nnf(If,If1) :-
 	If =.. [if,B,Then,Else],
 	!,
@@ -252,7 +274,7 @@ nnf(If,If1) :-
 	If1 =.. [if,B,NotThen,NotElse].
 nnf(iff(B1,B2),Iff1) :-
 	!,
-	nnf(or(and(B1,not(B2)),and(not(B1),B2)),Iff1).
+	nnf(or(and(B1,B2),and(not(B1),not(B2))),Iff1).
 nnf(X >= Y, X < Y) :-
 	!.
 nnf(X =< Y, X > Y) :-
