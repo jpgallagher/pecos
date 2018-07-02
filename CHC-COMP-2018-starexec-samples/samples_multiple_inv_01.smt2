@@ -1,0 +1,11 @@
+(set-logic HORN)
+(set-info :status sat)
+(declare-fun WRAP (Int ) Bool)
+(declare-fun NEST (Int ) Bool)
+
+(assert (forall ((m Int)) (=> (= m 0) (WRAP m))))
+(assert (forall ((m Int)) (=> (WRAP m) (NEST m))))
+(assert (forall ((m Int) (m1 Int)) (=> (and (NEST m) (= m1 (+ m 1))) (NEST m1))))
+(assert (forall ((m Int)) (=> (NEST m) (WRAP m))))
+(assert (forall ((m Int)) (=> (and (WRAP m) (not (>= m 0))) false)))
+(check-sat)
