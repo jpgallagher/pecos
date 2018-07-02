@@ -1,11 +1,13 @@
 #!/bin/sh
 
 # $1 = input file
-PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
+PECOS="/Users/bishoksank/Research/progamAnalysis/softwares/pecos" #"/Users/jpg/Research/LP/clptools/predabs/pecos"
 
 PE="$PECOS/pe"
 SMT2CHC="$PECOS/smt2chc"
-LIB="/Users/jpg/ciao/build/bin"
+LIB_CHCLIB="/Users/bishoksank/.ciao/chclibs/src"   #"/Users/jpg/ciao/build/bin"
+LIB_RAHFT="/Users/bishoksank/.ciao/RAHFT/src"
+
 
 
 #export CIAOPATH="$CS0/ciao_bundles"
@@ -19,16 +21,15 @@ LIB="/Users/jpg/ciao/build/bin"
 function spec() {
    local infile=$1
    local outfile=$2
-   #echo "Performing query transformation"
-   $LIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
-   #echo "Computing widening thresholds"
-   #$LIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
-   $PE/props -prg "$resultdir/$f.qa.pl" -l 1 -o wut.props || exit 1
-   
-   #echo "Computing convex polyhedron approximation of QA clauses"
-   $LIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
-   #echo "Specialise clauses"
-   $LIB/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile || exit 1
+   echo "Performing query transformation"
+   $LIB_CHCLIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
+   echo "Computing widening thresholds"
+   $LIB_CHCLIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
+   #$PE/props -prg "$resultdir/$f.qa.pl" -l 1 -o wut.props
+   echo "Computing convex polyhedron approximation of QA clauses"
+   $LIB_CHCLIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
+   echo "Specialise clauses"
+   $LIB_RAHFT/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile || exit 1
 }
 
 function checksafe() {
@@ -68,15 +69,17 @@ if (test ! -d $resultdir) then
         mkdir $resultdir
 fi
 
-#echo $1
-# Translation from competition format to Prolog-readable form
+#echo input file $1
+echo "Translation from competition format to Prolog-readable form"
 python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl" || exit 1
+echo "Translation normalisation"
 $SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" -int || exit 1
 prog="$resultdir/$f.norm.pl"
 
 
-#echo "Removal of redundant arguments"
-$LIB/raf "$prog" false "$resultdir/$f.raf.pl" || exit 1
+echo "Removal of redundant arguments"
+
+$LIB_RAHFT/raf "$prog" false "$resultdir/$f.raf.pl" || exit 1
 prog="$resultdir/$f.raf.pl"
 
 # search for counterexamples first for 15 seconds
@@ -99,10 +102,10 @@ i=1
 terminate=0
 until [[ $k -eq 0 || $terminate -eq 1 ]];
 do
-   echo "Iteration" $i
-   #echo "Specialisation"
+    echo "Iteration" $i
+   echo "Specialisation"
    spec "$prog" "$resultdir/$f.sp.pl"
-   #echo "Checking safety"
+   echo "Checking safety"
    checksafe "$prog"
    ret=$?
    if [ $ret -eq 100 -o $ret -eq 101 ]; then
@@ -110,7 +113,7 @@ do
    else
 		k=`expr $k \- 1`
 		i=`expr $i \+ 1`
-		#echo "Partial evaluation"
+		echo "Partial evaluation"
 		pe "$resultdir/$f.sp.pl" "$resultdir/$f.pe.pl" || exit 1
 		prog="$resultdir/$f.pe.pl"
 		

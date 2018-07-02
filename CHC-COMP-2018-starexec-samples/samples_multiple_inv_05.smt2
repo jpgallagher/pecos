@@ -1,0 +1,11 @@
+(set-logic HORN)
+(set-info :status sat)
+(declare-fun FUN (Int ) Bool)
+(declare-fun SAD (Int ) Bool)
+
+(assert (forall ((m Int)) (=> (> m 50) (FUN m))))
+(assert (forall ((m Int) (m1 Int)) (=> (and (FUN m) (= m1 (+ m 1))) (FUN m1))))
+(assert (forall ((m Int) (m1 Int)) (=> (and (FUN m) (= m1 (- m))) (SAD m1))))
+(assert (forall ((m Int) (m1 Int)) (=> (and (SAD m) (= m1 (- m 2))) (SAD m1))))
+(assert (forall ((m Int)) (=> (and (SAD m) (not (<= m (- 30)))) false)))
+(check-sat)
