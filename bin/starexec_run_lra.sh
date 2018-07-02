@@ -1,7 +1,6 @@
 #!/bin/sh
 
 # $1 = input file
-#PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
 PECOS=".."
 
 PE="$PECOS/pe"
@@ -15,28 +14,20 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3
 
 LIB="$CIAOPATH/build/bin"
 
-
-#export CIAOPATH="$CS0/ciao_bundles"
-#export CIAOROOT="$CS0/bin/ciao"
-#export PYTHONPATH="$CS0/z3/build/python"
-#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
-
-
-
 # constraint specialisation
 function spec() {
    local infile=$1
    local outfile=$2
    #echo "Performing query transformation"
-   $LIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
+   $LIB_CHCLIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
    #echo "Computing widening thresholds"
-   $LIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
+   $LIB_CHCLIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
    #$PE/props -prg "$resultdir/$f.qa.pl" -l 1 -o wut.props
    
    #echo "Computing convex polyhedron approximation of QA clauses"
-   $LIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
+   $LIB_CHCLIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
    #echo "Specialise clauses"
-   $LIB/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile || exit 1
+   $LIB_RAHFT/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile || exit 1
 }
 
 function checksafe() {
@@ -84,7 +75,7 @@ prog="$resultdir/$f.norm.pl"
 
 
 #echo "Removal of redundant arguments"
-$LIB/raf "$prog" false "$resultdir/$f.raf.pl" || exit 1
+$LIB_RAHFT/raf "$prog" false "$resultdir/$f.raf.pl" || exit 1
 prog="$resultdir/$f.raf.pl"
 
 # search for counterexamples first for 15 seconds

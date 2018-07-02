@@ -89,9 +89,10 @@ def parse_with_z3(
     clauses = []
     queries = []
     if len(simplified) == 0:
-        raise Skip(
-            'empty benchmark (possibly because of pre-processing)'
-        )
+        #raise Skip(
+        #   'empty benchmark (possibly because of pre-processing)'
+        #)
+        print('')
 
     pred_decls = set()
 
@@ -108,7 +109,8 @@ def parse_with_z3(
             )
 
     if len(queries) < 1:
-        raise Skip('no query clause (possibly because of pre-processing)')
+    #    raise Skip('no query clause (possibly because of pre-processing)')
+        print('')
 
     separated_clauses = []
 
