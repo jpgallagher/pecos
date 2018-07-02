@@ -19,15 +19,15 @@ function spec() {
    local infile=$1
    local outfile=$2
    #echo "Performing query transformation"
-   $LIB_CHCLIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
+   $LIB/qa $infile -query false -ans -o $resultdir/$f.qa.pl || exit 1
    #echo "Computing widening thresholds"
-   $LIB_CHCLIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
+   $LIB/thresholds1 -prg $resultdir/$f.qa.pl -a -o wut.props || exit 1
    #$PE/props -prg "$resultdir/$f.qa.pl" -l 1 -o wut.props
    
    #echo "Computing convex polyhedron approximation of QA clauses"
-   $LIB_CHCLIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
+   $LIB/cpascc -prg $resultdir/$f.qa.pl -cex "traceterm.out"  -withwut -wfunc h79 -o $resultdir/$f.qa.cha.pl || exit 1
    #echo "Specialise clauses"
-   $LIB_RAHFT/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile || exit 1
+   $LIB/insertProps -prg $infile -props $resultdir/$f.qa.cha.pl -o $outfile || exit 1
 }
 
 function checksafe() {
@@ -75,7 +75,7 @@ prog="$resultdir/$f.norm.pl"
 
 
 #echo "Removal of redundant arguments"
-$LIB_RAHFT/raf "$prog" false "$resultdir/$f.raf.pl" || exit 1
+$LIB/raf "$prog" false "$resultdir/$f.raf.pl" || exit 1
 prog="$resultdir/$f.raf.pl"
 
 # search for counterexamples first for 15 seconds
