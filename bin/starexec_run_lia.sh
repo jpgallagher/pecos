@@ -1,18 +1,19 @@
 #!/bin/sh
 
 # $1 = input file
-PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
+#PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
+PECOS=".."
 
 PE="$PECOS/pe"
 SMT2CHC="$PECOS/smt2chc"
-LIB="/Users/jpg/ciao/build/bin"
 
 
-#export CIAOPATH="$CS0/ciao_bundles"
-#export CIAOROOT="$CS0/bin/ciao"
-#export PYTHONPATH="$CS0/z3/build/python"
-#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$CS0/z3
+export CIAOPATH="$PECOS/ciao_bundles"
+export CIAOROOT="$PECOS/bin/ciao"
+export PYTHONPATH="$PECOS/z3/build/python"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3
 
+LIB="$CIAOPATH/build/bin"
 
 
 # constraint specialisation
@@ -99,7 +100,7 @@ i=1
 terminate=0
 until [[ $k -eq 0 || $terminate -eq 1 ]];
 do
-   echo "Iteration" $i
+   #echo "Iteration" $i
    #echo "Specialisation"
    spec "$prog" "$resultdir/$f.sp.pl"
    #echo "Checking safety"
