@@ -1,6 +1,6 @@
 #!/bin/sh
-
-PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
+# script to be run in the pecos top level directory
+PECOS=$(pwd)$
 #CIAOROOT="/Users/jpg/local/ciao-devel"
 #CIAOPATH="/Users/jpg/ciao"
 
