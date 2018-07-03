@@ -1,8 +1,8 @@
 #!/bin/sh
 # script to be run in the pecos top level directory
-PECOS=$(pwd)$
-#CIAOROOT="/Users/jpg/local/ciao-devel"
-#CIAOPATH="/Users/jpg/ciao"
+PECOS=$(pwd)
+export CIAOROOT="$PECOS/bin/ciao"
+export CIAOPATH="$PECOS/ciao_bundles"
 
 # copy programs from pecos 
 
@@ -22,7 +22,7 @@ cp $PECOS/bin/starexec_run_lra.sh .
 ciaoc_sdyn $CIAOPATH/chclibs/src/thresholds1.pl
 ciaoc_sdyn $CIAOPATH/chclibs/src/cpascc.pl
 ciaoc_sdyn $CIAOPATH/chclibs/src/qa.pl
-ciaoc_sdyn $CIAOPATH/RAHFT/src/insertprops.pl
+ciaoc_sdyn $CIAOPATH/RAHFT/src/insertProps.pl
 ciaoc_sdyn $CIAOPATH/RAHFT/src/raf
 #
 ciaoc_sdyn $PECOS/smt2chc/chcNorm.pl
