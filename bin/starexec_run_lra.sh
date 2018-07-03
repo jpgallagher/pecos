@@ -8,6 +8,9 @@ cd ..
 PECOS=$(pwd)
 cd $oldpwd
 
+source /usr/share/Modules/init/sh
+module load python/python27
+
 PE="$PECOS/bin"
 SMT2CHC="$PECOS/smt2chc"
 

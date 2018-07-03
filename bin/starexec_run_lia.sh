@@ -3,10 +3,15 @@
 # $1 = input file
 #PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
 #PECOS=".."
+set -x
+
 oldpwd=$(pwd)
 cd ..
 PECOS=$(pwd)
 cd $oldpwd
+
+source /usr/share/Modules/init/sh
+module load python/python27
 
 PE="$PECOS/bin"
 SMT2CHC="$PECOS/smt2chc"
@@ -17,7 +22,6 @@ export PYTHONPATH="$PECOS/z3/build/python"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3:$PECOS/bin
 
 LIB="$PECOS/bin"
-
 
 # constraint specialisation
 function spec() {
