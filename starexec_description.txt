@@ -1,0 +1,1 @@
+A solver for constrained Horn clauses using partial evaluation and constraint specialisation. Developed by John Gallagher [Roskilde Univ.], Bishoksan Kafle [Melbourne Univ.] and José Morales [IMDEA, Madrid].
