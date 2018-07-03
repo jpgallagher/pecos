@@ -1,7 +1,12 @@
 #!/bin/sh
 
 # $1 = input file
-PECOS=".."
+#PECOS=".."
+
+oldpwd=$(pwd)
+cd ..
+PECOS=$(pwd)
+cd $oldpwd
 
 PE="$PECOS/pe"
 SMT2CHC="$PECOS/smt2chc"

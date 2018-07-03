@@ -2,7 +2,11 @@
 
 # $1 = input file
 #PECOS="/Users/jpg/Research/LP/clptools/predabs/pecos"
-PECOS=".."
+#PECOS=".."
+oldpwd=$(pwd)
+cd ..
+PECOS=$(pwd)
+cd $oldpwd
 
 PE="$PECOS/pe"
 SMT2CHC="$PECOS/smt2chc"
