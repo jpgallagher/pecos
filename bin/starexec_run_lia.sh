@@ -19,7 +19,7 @@ SMT2CHC="$PECOS/smt2chc"
 export CIAOPATH="$PECOS/ciao_bundles"
 export CIAOROOT="$PECOS/bin/ciao"
 export PYTHONPATH="$PECOS/z3/build/python"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3:$PECOS/bin
+export LD_LIBRARY_PATH=$CIAOROOT/third-party/lib:$PECOS/z3:$PECOS/bin:$LD_LIBRARY_PATH
 
 LIB="$PECOS/bin"
 
