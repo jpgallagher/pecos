@@ -1,7 +1,7 @@
 #!/bin/sh
 
 resultfile="results.txt"
-tlimit="1.0m"
+tlimit="0.2m"
 echo "Run benchmarks in $1\n\n" > $resultfile
 
 shopt -s nullglob
@@ -10,7 +10,7 @@ do
    echo "`basename $file`"
    echo "`basename $file`" >> "$resultfile"
    START=$(date +%s)
-   gtimeout "$tlimit" sh starexec_run_lia_ruc.sh $file 
+   timeout "$tlimit" sh starexec_run_lia.sh $file 
    case $? in
 			"124") 
 				echo "TIMEOUT "$tlimit"" >> "$resultfile"

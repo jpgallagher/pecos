@@ -8,15 +8,15 @@ cd ..
 PECOS=$(pwd)
 cd $oldpwd
 
-PE="$PECOS/pe"
+PE="$PECOS/bin"
 SMT2CHC="$PECOS/smt2chc"
 
 export CIAOPATH="$PECOS/ciao_bundles"
 export CIAOROOT="$PECOS/bin/ciao"
 export PYTHONPATH="$PECOS/z3/build/python"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CIAOROOT/third-party/lib:$PECOS/z3:$PECOS/bin
 
-LIB="$CIAOPATH/build/bin"
+LIB="$PECOS/bin"
 
 
 # constraint specialisation
@@ -75,7 +75,7 @@ fi
 #echo "Translation from competition format to Prolog-readable form"
 python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl" || exit 1
 #echo "Translation normalisation"
-$SMT2CHC/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" -int || exit 1
+$LIB/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" -int || exit 1
 prog="$resultdir/$f.norm.pl"
 
 
