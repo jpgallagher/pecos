@@ -18,7 +18,10 @@ SMT2CHC="$PECOS/smt2chc"
 export CIAOPATH="$PECOS/ciao_bundles"
 export CIAOROOT="$PECOS/bin/ciao"
 export PYTHONPATH="$PECOS/z3/build/python"
-export LD_LIBRARY_PATH=$CIAOROOT/third-party/lib:$PECOS/z3:$PECOS/bin:$LD_LIBRARY_PATH
+LD_LIBRARY_PATH1=$CIAOROOT/third-party/lib:$PECOS/z3:$LD_LIBRARY_PATH
+LD_LIBRARY_PATH2=$CIAOROOT/third-party/lib:$PECOS/z3:$PECOS/bin:$LD_LIBRARY_PATH
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH2
 
 LIB="$PECOS/bin"
 
@@ -77,7 +80,9 @@ fi
 
 #echo $1
 # Translation from competition format to Prolog-readable form
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH1
 python $SMT2CHC/format.py --split_queries False --simplify False "$1" > "$resultdir/$f.pl" || exit 1
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH2
 $LIB/chcNorm "$resultdir/$f.pl" "$resultdir/$f.norm.pl" || exit 1
 prog="$resultdir/$f.norm.pl"
 
