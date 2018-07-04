@@ -58,11 +58,11 @@ def parse_with_z3(
     goals = z3.Goal()
     goals.add(assertions)
 
-    non_lin = z3.Probe('arith-max-deg')
-    if non_lin(goals) > 1:
-        raise Skip(
-            'found non-linear expressions'
-        )
+    #non_lin = z3.Probe('arith-max-deg')
+    #if non_lin(goals) > 1:
+    #    raise Skip(
+    #        'found non-linear expressions'
+    #    )
 
     # if simplify:
     tactic = z3.Tactic("horn-simplify")
