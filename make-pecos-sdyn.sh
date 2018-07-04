@@ -31,3 +31,5 @@ ciaoc_sdyn $PECOS/pe/counterExample.pl
 ciaoc_sdyn $PECOS/pe/props.pl
 ciaoc_sdyn $PECOS/pe/tpclp.pl
 
+# Remove some system .so files (which are not part of 3rd-party)
+rm -f libc.so.* libgcc_s.so.* libm.so.* libstdc++.so.*
