@@ -33,7 +33,7 @@ checkRootSimple(_N,data(PT,_),_,R,Es0) :-
 	findSimple(_N1,PT,Es0,R).
 	
 make(X,Es0,Es1) :-
-	insert_tree(Es0,X,data(X,[]),Es1).
+	insert_tree(Es0,X,data(X,[X]),Es1).
 	
 merge(X,Y,Es0,Es4,data(RX,Ts)) :-
 	find(0,X,Es0,Es1,data(RX,TsX)),
