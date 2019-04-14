@@ -20,7 +20,6 @@
 
 :- data flag/1.
 
-
 go(F,Q) :-
 	lbe:main(['-prg',F, '-entry', Q]).
 	
@@ -124,48 +123,65 @@ unfoldBlocks([],_,_,_,_,_,[]).
 unfoldBlock(F/N,Ms,MCs,Ss,Hs,(A:-Def,PCalls)) :-
 	!,
 	functor(A,F,N),
-	treeDef(A,Ms,MCs,Ss,Hs,Def,[],PCalls,[]),
+	treeDef(A,Ms,MCs,Ss,Hs,_,Def,[],PCalls,[]),
 	numbervars((A:-Def,PCalls),0,_).
 
-treeDef(A,Ms,MCs,Ss,Hs,[Def|F0],F1,PCs0,PCs1) :-
+treeDef(A,Ms,MCs,Ss,Hs0,Hs1,[Def|F0],F1,PCs0,PCs1) :-
 	pdef(A,E),
-	expand(E,Def,Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs1).
+	expand(E,Def,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1).
 
-expand((B1;B2),(C1;C2),Ms,MCs,Ss,Hs,F0,F2,PCs0,PCs2) :-
+expand((B1;B2),(C1;C2),Ms,MCs,Ss,Hs0,Hs2,F0,F2,PCs0,PCs2) :-
 	!,
-	expand(B1,C1,Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs1),
-	expand(B2,C2,Ms,MCs,Ss,Hs,F1,F2,PCs1,PCs2).
-expand([B|Bs],[B|Bs1],Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs1) :-
+	expand(B1,C1,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1),
+	expand(B2,C2,Ms,MCs,Ss,Hs1,Hs2,F1,F2,PCs1,PCs2).
+expand([],[],_,_,_,Hs,Hs,F,F,PCs,PCs) :-
+	!.
+expand([B|Bs],[B|Bs1],Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1) :-
 	isConstraint(B),
 	!,
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs1).
-expand([],[],_,_,_,_,F,F,PCs,PCs) :-
-	!.
-expand([B|Bs],[Xs=Ys|Bs1],Ms,MCs,Ss,Hs,F0,F2,PCs0,PCs2) :-
+	expand(Bs,Bs1,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1).
+expand([B|Bs],[Xs=Ys|Bs1],Ms,MCs,Ss,Hs0,Hs2,F0,F2,PCs0,PCs2) :-
 	singleContext(B,P,N,Ss),
 	!,
 	functor(CB,P,N),
-	member(CB,Hs),	% get the call variables from the list
 	B =.. [P|Xs],
 	CB =.. [P|Ys],
-	treeDef(B,Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs1),
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs,F1,F2,PCs1,PCs2).
-expand([B|Bs],[Xs=Ys|Bs1],Ms,MCs,Ss,Hs,F0,F1,[CB|PCs0],PCs1) :-
+	expandOrReuse(CB,B,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1),
+	expand(Bs,Bs1,Ms,MCs,Ss,Hs1,Hs2,F1,F2,PCs1,PCs2).
+expand([B|Bs],[Xs=Ys|Bs1],Ms,MCs,Ss,Hs0,Hs1,F0,F1,[CB|PCs0],PCs1) :-
 	multiContextCall(B,MCs),
 	!,
 	makeCall(B,Xs,CB,Ys),
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs1).
-expand([B|Bs],[Xs=Ys|Bs1],Ms,MCs,Ss,Hs,F0,F1,[CB|PCs0],PCs1) :-
+	expand(Bs,Bs1,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1).
+expand([B|Bs],[Xs=Ys|Bs1],Ms,MCs,Ss,Hs0,Hs2,F0,F1,PCs0,PCs2) :-
 	leafCall(B,P,N,Ms),
 	!,
 	functor(CB,P,N),
-	member(CB,Hs),	% get the call variables from the list
 	B =.. [P|Xs],
 	CB =.. [P|Ys],
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs1).
-expand([B|Bs],[Def|Bs1],Ms,MCs,Ss,Hs,F0,F1,PCs0,PCs2) :-
-	treeDef(B,Ms,MCs,Ss,Hs,Def,[],PCs0,PCs1),
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs,F0,F1,PCs1,PCs2).
+	selectOrReuse(CB,Hs0,Hs1,PCs0,PCs1),
+	expand(Bs,Bs1,Ms,MCs,Ss,Hs1,Hs2,F0,F1,PCs1,PCs2).
+expand([B|Bs],[Def|Bs1],Ms,MCs,Ss,Hs0,Hs2,F0,F1,PCs0,PCs2) :-
+	treeDef(B,Ms,MCs,Ss,Hs0,Hs1,Def,[],PCs0,PCs1),
+	expand(Bs,Bs1,Ms,MCs,Ss,Hs1,Hs2,F0,F1,PCs1,PCs2).
+	
+expandOrReuse(CB,_,_,_,_,Hs,Hs,F,F,PCs,PCs) :-
+	member(used(CB),Hs),
+	!.
+expandOrReuse(CB,B,Ms,MCs,Ss,Hs0,Hs2,F0,F1,PCs0,PCs1) :-
+	firstUse(CB,Hs0,Hs1),
+	treeDef(B,Ms,MCs,Ss,Hs1,Hs2,F0,F1,PCs0,PCs1).
+	
+selectOrReuse(CB,Hs,Hs,PCs,PCs) :-
+	member(used(CB),Hs),
+	!.
+selectOrReuse(CB,Hs0,Hs1,[CB|PCs],PCs) :-
+	firstUse(CB,Hs0,Hs1).
+
+firstUse(CB,[CB|Hs],[used(CB)|Hs]) :- 	% record that CB has been used
+	!.
+firstUse(CB,[H|Hs],[H|Hs1]) :-
+	firstUse(CB,Hs,Hs1).
 	
 multiContextCall(B,MCPs) :-
 	functor(B,P,N),
