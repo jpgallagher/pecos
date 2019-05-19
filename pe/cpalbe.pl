@@ -17,10 +17,10 @@
 :- use_module(library(ppl)).
 :- use_module(library(lists)).
 :- use_module(chclibs(timer_ciao)).
-:- use_module(load_lbe).
 :- use_module(chclibs(ppl_ops)).
 :- use_module(chclibs(scc)).
-:- use_module(constraintPartition).
+:- use_module(chclibs(program_loader)).
+:- use_module(lbe).
 
 :- use_module(chclibs(yices2_sat)).
 :- use_module(ciao_yices(ciao_yices_2)).
@@ -34,8 +34,8 @@
 :- dynamic(operatorcount/1).
 :- dynamic(widening_point/3).
 :- dynamic(outputfile/1).
-:- dynamic(newfact/2).
-:- dynamic(oldfact/2).
+:- dynamic(newfact/3).
+:- dynamic(oldfact/3).
 :- dynamic(prio_widen/1).
 :- dynamic(widenAt/1).
 :- dynamic(widenf/1).
@@ -89,13 +89,14 @@ main(['-prg',FileIn, '-o', FileOut]) :-
 	go2(FileIn,FileOut).
 main(ArgV) :-
 	verbose_message(['Starting Convex Polyhedra analysis']),
-	get_options(ArgV,Options,_),
+	cpalbe:get_options(ArgV,Options,_),
 	cleanWorkspace,
-	set_options(Options,File,FactFile),
+	cpalbe:set_options(Options,File,FactFile),
 	initialise,
 	( flag(verbose) -> start_time ; true ),
-	load_file(File),
-	dependency_graph(Es,Vs),
+	Entry = false,
+	assertLBE(File,Entry),
+	cpalbe:dependency_graph(Es,Vs),
 	scc_graph(Es,Vs,G),
 	start_ppl,
 	yices_init,
@@ -104,10 +105,10 @@ main(ArgV) :-
 	( flag(verbose) -> end_time(user_output) ; true ),
 	!,
 	factFile(FactFile),
-	generateCEx,
+	%generateCEx,
 	yices_exit,
 	ppl_finalize.
-
+/*
 generateCEx:-
 	cEx('$NOCEX'),
 	!.
@@ -116,6 +117,7 @@ generateCEx :-
 	open(CexFile,write,S),
 	findCounterexampleTrace(S),
 	close(S).
+*/
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Iterate solves each component 
@@ -141,12 +143,11 @@ iterate([]).
 non_recursive_scc(P/N) :-
 	functor(A,P,N),
 	lbe_clause(A,Def,PCalls,_),
-	(solutionConstraint(A,[Def,PCalls],(A,Phi,Ids)), Phi \== false -> 
-		(checkSat(Phi) ->
-			removeExistsVars(A,Phi,Phi1),
-			numbervars((A,Phi1),0,_),
-			(Phi1=(_;_) -> Phi2=[Phi1]; Phi2=Phi1),
-			record(A,pathConstraint(Phi2),Ids);
+	(solutionConstraint(A,Def,PCalls,(A,Phi,Ids,AllBools)), Phi \== false -> 
+		(isSat(Phi,AllBools) ->			% numbervars is called within isSat
+			%removeExistsVars(A,Phi,Phi1),	
+			(Phi=(_;_) -> Phi2=[Phi]; Phi2=Phi),
+			record(A,nonrecPred(Phi2),AllBools,Ids);
 			true)
 		;
 		true
@@ -168,13 +169,9 @@ recursive_scc(Ps) :-
 		
 sccIterate([P/N|Ps]) :-
 	functor(A,P,N),
-	findall((A,B,C),(lbe_clause(A,B,C,_),potentialChange(C)),Cls),
-	(solutionConstraint(A,Cls,(A,Phi,Ids)), Phi \== false -> 
-		solveAndUpdate(A,Phi,Ids)
-		;
-		true
-	),
-	!,
+	lbe_clause(A,B,C,_),
+	solutionConstraint(A,B,C,(A,Phi,Ids,AllBools)), 
+	solveAndUpdate(A,Phi,Ids,AllBools),
 	sccIterate(Ps).
 sccIterate([]).
 
@@ -223,24 +220,25 @@ subTrees([C|As],[C|Cs],Ts) :-
 subTrees([],[],[]).
 
 	
-solveAndUpdate(A,Phi,Ids) :-
-	(getoldfact(A,Psi,_), checkSat(Psi) -> true; Psi=false),
+solveAndUpdate(A,Phi,Ids,Bools) :-
+	(getoldfact(A,Psi,[],_) -> true; Psi=false),	% no booleans in recursive approx.
 	varset((A,Phi),Vars),
+	setdiff(Vars,Bools,Reals),
 	numbervars(Vars,0,_), 
 	yices_context(Ctx),
-	checkTransition(Ctx,[neg(Psi),Phi],Vars,StatusName),
+	checkSat(Ctx,[neg(Psi),Phi],Reals,Bools,StatusName),
 	(StatusName==satisfiable -> 
 		% sat(and(not(Psi),Phi)) ==> there is a new soln. for A
-		updateRecursiveApprox(A,Ctx,Phi,Ids)
+		updateRecursiveApprox(A,Ctx,[neg(Psi),Phi],Bools,Ids)
 		;
 		true
 	),
 	yices_free_context(Ctx).
 	
-checkTransition(Ctx,E,Vars,StatusName) :-
+checkSat(Ctx,E,Reals,Bools,StatusName) :-
 	expr2yices(E,Y),
-	varTypes(Vars,real,Us),
-	varTypes([],bool,Vs),
+	varTypes(Reals,real,Us),
+	varTypes(Bools,bool,Vs),
 	declareVars(Us),
 	declareVars(Vs),
 	yices_parse_term(Y,T),
@@ -248,9 +246,9 @@ checkTransition(Ctx,E,Vars,StatusName) :-
 	yices_assert_formula(Ctx,T,_Status),
 	yices_check(Ctx,StatusName).
 		
-updateRecursiveApprox(A,Ctx,Phi,Ids) :-
+updateRecursiveApprox(A,Ctx,Phi,Bools,Ids) :-
 	yices_get_model(Ctx,1,Model),
-	buildConjunct(Phi,Model,APhi),
+	buildConjunct(Phi,Model,Bools,APhi),
 	melt((A,APhi),(A1,APhi1)),
 	varset(A1,Xs),
 	varset((A1,APhi1),Ys),
@@ -261,28 +259,35 @@ updateRecursiveApprox(A,Ctx,Phi,Ids) :-
 	setdiff(Ys,Xs,Zs),
 	project(H1,Zs,Hp),
 	getConstraint(Hp,Cs),
-	record(A,constraint(Cs),Ids).
+	record(A,recPred(Cs),[],Ids).
 	
-buildConjunct(Phi,Model,Cs) :-
-	atomicConstraints(Phi,As,[]),
+buildConjunct(Phi,Model,Bools,Cs) :-
+	atomicConstraints(Phi,Bools,As,[]),
 	checkTrue(As,Model,Cs).
 	
-atomicConstraints((D1;D2),As0,As2) :-
+atomicConstraints((D1;D2),Bools,As0,As2) :-
 	!,
-	atomicConstraints(D1,As0,As1),
-	atomicConstraints(D2,As1,As2).
-atomicConstraints([C|Cs],As0,As2) :-
+	atomicConstraints(D1,Bools,As0,As1),
+	atomicConstraints(D2,Bools,As1,As2).
+atomicConstraints([C|Cs],Bools,As0,As2) :-
 	!,
-	atomicConstraints(C,As0,As1),
-	atomicConstraints(Cs,As1,As2).
-atomicConstraints(false,As,As) :-
+	atomicConstraints(C,Bools,As0,As1),
+	atomicConstraints(Cs,Bools,As1,As2).
+atomicConstraints(false,_,As,As) :-
 	!.
-atomicConstraints([],As,As) :-
+atomicConstraints([],_,As,As) :-
 	!.
-atomicConstraints(neg(A),As0,As1) :-
+atomicConstraints(neg(A),Bools,As0,As1) :-
 	!,
-	atomicConstraints(A,As0,As1).
-atomicConstraints(A,[A|As],As).
+	atomicConstraints(A,Bools,As0,As1).
+atomicConstraints(X=E,Bools,As0,As1) :-
+	member(X,Bools),
+	!,
+	atomicConstraints(E,Bools,As0,As1).
+atomicConstraints(A,_,[A|As],As) :-
+	linear_constraint(A),
+	!.
+atomicConstraints(_,_,As,As).
 
 checkTrue([],_,[]).
 checkTrue([C|As],Model,[C|Cs]) :-
@@ -323,50 +328,41 @@ varTypes([],_,[]).
 varTypes([X|Xs],T,[(X,T)|Ys]) :-
 	varTypes(Xs,T,Ys).
 	
-solutionConstraint(A,[],(A,false,[])) :-
-	!.
-solutionConstraint(A,[(A,B,Id)|Cls],(A,(Cs;Phis),[Id|Ids])) :-
-	prove(B,Cs),
-	!,
-	solutionConstraint(A,Cls,(A,Phis,Ids)).
-solutionConstraint(A,[_|Cls],(A,Phis,Ids)) :-
-	solutionConstraint(A,Cls,(A,Phis,Ids)).
+solutionConstraint(A,Def,PCalls,(A,[Def|Ans],[],AllBools)) :-
+	prove(PCalls,Ans,Bools,OBs),
+	appendall([Bools|OBs],AllBools). 
 	
-checkSat(Phi) :-
-	\+ unsat(Phi).
+appendall([],[]).
+appendall([Bs|Bools],AllBs) :-	
+	appendall(Bools,AllBs1),
+	append(Bs,AllBs1,AllBs).
 	
-unsat(Phi) :-
+isSat(Phi,Bools) :-
 	varset(Phi,Vars),
+	setdiff(Vars,Bools,Reals),
 	numbervars(Vars,0,_),
 	yices_context(Ctx),
-	checkTransition(Ctx,Phi,Vars,StatusName),
-	StatusName==unsatisfiable,
+	checkSat(Ctx,Phi,Reals,Bools,StatusName),
+	StatusName==satisfiable,
 	yices_free_context(Ctx).
 	
-
 potentialChange(B) :-
 	(changed(B) -> true; flag(first)).
 
-
-prove([],[]).
-prove([true],[]).
-prove([B|Bs],[C|Cs]):-
-	constraint(B,C),
+prove([],[],[],[]).
+prove([(Bool=B)|Bs],[(Bool=CsOld)|Cs],[Bool|Bools],[OldBools|OBs]):-
+	getoldfact(B,CsOld,OldBools,_),
 	!,
-	prove(Bs,Cs).
-prove([B|Bs],Cs):-
-	getoldfact(B,CsOld,_),
-	prove(Bs,Cs2),
-	append(CsOld,Cs2,Cs).
+	prove(Bs,Cs,Bools,OBs).
+prove([(Bool=_)|Bs],[(Bool=false)|Cs],[Bool|Bools],OBs):-
+	prove(Bs,Cs,Bools,OBs).
 	
-getoldfact(B,Cs1,T) :-
+getoldfact(B,Cs1,Bools1,T) :-
 	functor(B,F,N),
 	functor(B1,F,N),
-	oldfact(B1,Cs),
-	melt((B1,Cs),(B,Cs1)),
+	oldfact(B1,Cs,Bools),
+	melt((B1,Cs,Bools),(B,Cs1,Bools1)),
 	traceTerm(B1,T).
-	
-
 	
 allFalse([],[]) :-
 	!.
@@ -398,7 +394,6 @@ findSatPath([_|Ys],[_|Bs],Model,Path) :-
 	findSatPath(Ys,Bs,Model,Path). % omit vars that are not on the path
 findSatPath([],[],_,[]).
 
-*/
 
 extractPathConstraints(([B|Phi]; _),Path,APsi) :-
 	member(B,Path), 	% it is on the path
@@ -424,9 +419,14 @@ extractPathConstraints([],_,[]) :-
 extractPathConstraints(F,_,[F]) :-
 	arithConstraint(F).
 	
+
+	
 arithConstraint(F) :-
 	F =.. [P|_],
 	member(P,['=','<','>','>=','=<','==','=:=', 'neq']).
+	
+*/
+
 	
 not_converged :-
 	nextflag(_).
@@ -460,15 +460,15 @@ raise_flag(F):-
 	; assertz(nextflag(Fn/N))
 	).
 
-record(F,pathConstraint(H),T) :-
-	cond_assert_nonrec(F,H,T).
+record(F,nonrecPred(Cs),Bools,T) :-
+	cond_assert_nonrec(F,Cs,Bools,T).
 	
-record(F,constraint(H),T) :-
-	cond_assert_rec(F,H,T).
+record(F,recPred(Cs),_,T) :-
+	cond_assert_rec(F,Cs,T).
 	
-cond_assert_nonrec(F,Cs,T):-
+cond_assert_nonrec(F,Cs,Bools,T):-
 	%write('Asserting...'),nl,
-	assertz(newfact(F,Cs)),
+	assertz(newfact(F,Cs,Bools)),
 	raise_flag(F),
 	(traceTerm(F,_) -> true; assertz(traceTerm(F,T))).
 	%write(traceTerm(F,T)),nl).
@@ -480,43 +480,41 @@ cond_assert_rec(F,Cs,T):-
 	extendDim(H,N),
 	%write('Asserting...'),nl,
 	\+ subsumedByExisting(F,N,H),
-	getExistingConstraints(F,Cs0),
+	getExistingConstraints(F,Cs0,[]),	% assume no bools in recursive approximations
 	(Cs0=empty -> H0=empty;
 		makePolyhedron(Cs0,H0),
 		extendDim(H0,N)),
 	convhull(H0,H,H2),
 	getConstraint(H2,Cs2),
-	assertz(newfact(F,Cs2)),
+	assertz(newfact(F,Cs2,[])),
 	raise_flag(F),
 	(traceTerm(F,_) -> true; assertz(traceTerm(F,T))).
 	%write(traceTerm(F,T)),nl).
 	
 subsumedByExisting(F,N,H) :-
-	fact(F,Cs1), 
-	makePolyhedron(Cs1,H1), 
+	fact(F,Cs,[]), 
+	makePolyhedron(Cs,H1), 
 	extendDim(H1,N),
 	contains(H1,H).
 
-getExistingConstraints(F,H0) :-
-	retract(newfact(F,H0)),
+
+getExistingConstraints(F,Cs,Bools) :-
+	oldfact(F,Cs,Bools),
 	!.
-getExistingConstraints(F,H0) :-
-	oldfact(F,H0),
-	!.
-getExistingConstraints(_,empty).
+getExistingConstraints(_,empty,[]).
 
 
 
 
-fact(X,Y) :-
-	newfact(X,Y).
-fact(X,Y) :-
-	oldfact(X,Y).
+fact(X,Y,Bools) :-
+	newfact(X,Y,Bools).
+fact(X,Y,Bools) :-
+	oldfact(X,Y,Bools).
 	
 newoldfacts :-
-	retract(newfact(F,H)),
-	retractall(oldfact(F,_)),
-	assertz(oldfact(F,H)),
+	retract(newfact(F,H,Bools)),
+	retractall(oldfact(F,_,_)),
+	assertz(oldfact(F,H,Bools)),
 	fail.
 newoldfacts.
 
@@ -535,8 +533,8 @@ possibleWidenPs([],[]).
 possibleWidenPs([(Dg,F,N)|WPs],[Fn|PWPs]) :- 	% Possible WP if there is both old and new fact
 	widening_point(F/N,Dg,_Delays),
 	functor(Fn,F,N),
-	newfact(Fn,_),
-	oldfact(Fn,_),
+	newfact(Fn,_,_),
+	oldfact(Fn,_,_),
 	!,
 	possibleWidenPs(WPs,PWPs).
 possibleWidenPs([_|WPs],PWPs) :-
@@ -556,8 +554,8 @@ widenlist([Wc|Ws]) :-
 widenlist([Wc|Ws]) :-
 	functor(Wc,WcF,WcN),
 	widening_point(WcF/WcN,_,0),
-	retract(newfact(Wc,NewCs)),
-	retract(oldfact(Wc,OldCs)),
+	retract(newfact(Wc,NewCs,[])),
+	retract(oldfact(Wc,OldCs,[])),
 	makePolyhedron(NewCs,NewH),
 	makePolyhedron(OldCs,OldH),
 	%write(NewCs),nl,
@@ -568,7 +566,7 @@ widenlist([Wc|Ws]) :-
 	debug_message(['Widening at ',Wc]),
 	wutwiden(Wc,NewH,OldH,H2),
 	getConstraint(H2,C2),
-	assertz(oldfact(Wc,C2)),
+	assertz(oldfact(Wc,C2,[])),
 	widenlist(Ws).
 	
 extendDim(H,N) :-
@@ -675,7 +673,7 @@ dependency_graph(Es,Vs) :-
 	findall(P/N-Q/M, (
 			lbe_clause(H,_,Calls,_),
 			functor(H,P,N),
-			member(B,Calls),
+			member((_=B),Calls),
 			\+ formula(B),
 			functor(B,Q,M)
 			),
@@ -757,8 +755,8 @@ cleanWorkspace :-
 	retractall(operatorcount(_)),
 	retractall(widening_point(_,_,_)),
 	retractall(outputfile(_)),
-	retractall(newfact(_,_)),
-	retractall(oldfact(_,_)),
+	retractall(newfact(_,_,_)),
+	retractall(oldfact(_,_,_)),
 	retractall(prio_widen(_)),
 	retractall(widenAt(_)),
 	retractall(widenf(_)),
@@ -793,7 +791,7 @@ factFile(user_output):-
 factFile(File) :-
 	open(File,write,Sout),
 	%(File=user_output -> Sout=user_output; open(File,write,Sout)),
-	(oldfact(F,C),
+	(oldfact(F,C,_),
 	%ppl_Polyhedron_get_minimized_constraints(H,C),
 	%numbervars(F,0,_),
 	writeq(Sout,F), write(Sout,' :- '), 
@@ -803,12 +801,9 @@ factFile(File) :-
 	fail;
 	close(Sout)).
 
-% Version generation and FTA construction
-
-fact3(F,H,_) :-
-	oldfact(F,H).
 
 
+/*
 findCounterexampleTrace(S) :-
 	(traceTerm(false,Id); traceTerm(false_ans,Id)),
 	!,
@@ -823,7 +818,7 @@ findCounterexampleTrace(S) :-
 	nl(S).	
 
 makeTrace(Id,Trace) :-
-	lbe_clause(_,B,Id,_),
+	lbe_clause(_,_,B,Id),
 	makeTraceList(B,Ids),
 	Trace =.. [Id|Ids].
 	
@@ -838,6 +833,7 @@ makeTraceList([B|Bs],[T|Ts]):-
 	functor(B1,F,N),
 	traceTerm(B1,T),
 	makeTraceList(Bs,Ts).
+*/
 	
 linearConstraints([],[],[]).
 linearConstraints([C|Cs],[C|LCs],NLCs) :-
@@ -848,7 +844,7 @@ linearConstraints([C|Cs],LCs,[C|NLCs]) :-
 	linearConstraints(Cs,LCs,NLCs).
 	
 formula(B) :-
-	isConstraint(B),
+	cpalbe:isConstraint(B),
 	!.
 formula((_;_)).
 formula([_|_]).
