@@ -49,26 +49,20 @@ partition([C|Cs],Es0,Es2) :-
 	partition(Cs,Es1,Es2).
 partition([],Es,Es).
 
-updatePartition([],C,Es0,Es1) :-
-	!,
-	findSimple(_,noVar,Es0,data(R,P)),
-	updatePartition(P,[],C,P1),
-	search_replace_tree(Es0,R,data(R,P),Es1,data(R,P1)).
-updatePartition([X|Xs],C,Es0,Es1) :-
-	findSimple(_,X,Es0,data(R,P)),
-	updateSets(P,[X|Xs],C,P1),
-	search_replace_tree(Es0,R,data(R,P),Es1,data(R,P1)).
+updatePartition([V|_],C,Es0,Es1) :-
+	findSimple(_,V,Es0,data(Z,P)),
+	updateData(P,C,P1),
+	search_replace_tree(Es0,Z,data(Z,P),Es1,data(Z,P1)).
 	
-updateSets([],Xs,C,[Xs,[C]]) :-
+updateData([X|Xs],C,partition([X|Xs],[C])) :-	% first constraint added to this set
 	!.
-updateSets([Ys,Cs],Xs,C,[Zs,[C|Cs]]) :-
-	setunion(Xs,Ys,Zs).
+updateData(partition(Xs,Cs),C,partition(Xs,[C|Cs])).
 	
-makePartitions([data(_,[])|Ps],CP,VP) :-
+
+makePartitions([data(_,partition(Xs,Cs))|Ps],[Cs|CP],[Xs|VP]) :-
 	!,
 	makePartitions(Ps,CP,VP).
-makePartitions([data(_,[Xs,Cs])|Ps],[Cs|CP],[Xs|VP]) :-
-	!,
+makePartitions([data(_,_)|Ps],CP,VP) :-
 	makePartitions(Ps,CP,VP).
 makePartitions([],[],[]).
 	
