@@ -146,9 +146,9 @@ non_recursive_scc(P/N) :-
 	lbe_clause(A,Def,PCalls,_),
 	(solutionConstraint(A,Def,PCalls,(A,Phi,Ids,AllBools)), Phi \== false -> 
 		(isSat(Phi,AllBools) ->			% numbervars is called within isSat
-			removeExistsVars(A,Phi,Phi1),	
+			removeExistsVars(A,AllBools,Phi,Phi1),	
 			(Phi1=(_;_) -> Phi2=[Phi1]; Phi2=Phi1),
-			record(A,nonrecPred(Phi2),AllBools,Ids);
+			record(A,nonrecPred(Phi2),[],Ids);
 			true)
 		;
 		true
@@ -175,9 +175,6 @@ sccIterate([P/N|Ps]) :-
 	solveAndUpdate(A,Phi,Ids,AllBools),
 	sccIterate(Ps).
 sccIterate([]).
-
-
-
 	
 solveAndUpdate(A,Phi,Ids,Bools) :-
 	(getoldfact(A,Psi,[],_) -> true; Psi=false),	% no booleans in recursive approx.
@@ -340,13 +337,13 @@ incrementOperatorCount :-
 	Y is X + 1,
 	assertz(operatorcount(Y)).
 	
-removeExistsVars(A,Phi,Phi1) :-
-	melt((A,Phi),(A1,Phi2)),
-	varset((A1,Phi2),Xs),
-	varset(Phi2,Zs),
-	setdiff(Zs,Xs,Ys),
+removeExistsVars(A,Bools,Phi,Phi1) :-
+	melt((A,Phi,Bools),(A1,Phi2,Bools1)),
+	varset((A1,Phi2),Xs),	% all vars
+	varset(Phi2,Zs),		% body vars
+	setdiff(Zs,Xs,Ys),		% exists vars
 	numbervars(Xs,0,_),
-	elimVars(Phi2,Xs,Ys,Phi1).
+	elimVars(Phi2,Xs,Ys,Bools1,Phi1).
 	
 
 /*

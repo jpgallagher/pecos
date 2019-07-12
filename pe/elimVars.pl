@@ -1,4 +1,4 @@
-:- module(elimVars, [main/1,elimVars/4], [assertions, isomodes, doccomments,dynamic]).
+:- module(elimVars, [main/1,elimVars/5], [assertions, isomodes, doccomments,dynamic]).
 %! \title Quantifier elimination using Monniaux algorithm
 % arXiv:0803.1575v2 [cs.LO] 4 Sep 2008 and LPAR 2008
 % David Monniaux: A Quantifier Elimination Algorithm for Linear Real Arithmetic.
@@ -23,23 +23,27 @@
 main([File]) :-
 	start_ppl,
 	yices_init,
-	getFormula(File,F),					% first term in File is F of the form (H:-B)
-	quantifiedVariables(F,B,Xs,Ys), 	% forall Xs. exists Ys. B
-	elimVars(B,Xs,Ys,O),
+	getFormula(File,F),						% first term in File is F of the form (H:-B)
+	quantifiedVariables(F,B,Xs,Ys,Bools), 	% forall Xs. exists Ys. B
+	elimVars(B,Xs,Ys,Bools,O),
 	write(O),nl,
 	yices_exit,
 	end_ppl.
 	
-elimVars(B,Xs,Ys,O) :-
+elimVars(B,Xs,Ys,Bools,O) :-			% allow for boolean variables in B.  
 	yices_context(Ctx),
-	length(Xs,N),
-	varTypes(Xs,real,Vs),
+	setdiff(Xs,Bools,Reals),
+	varTypes(Reals,real,Vs),
 	declareVars(Vs),
-	existElim(B,Ys,N,false,O,B,Ctx),
+	varTypes(Bools,bool,Ws),
+	declareVars(Ws),
+	setdiff(Ys,Bools,ElimReals),
+	length(Reals,N),
+	existElim(B,ElimReals,N,false,O,B,Ctx),
 	yices_free_context(Ctx).
 	
 
-% function ExistElim defined in Monniaux 2008.  Eliminate Ys from F
+% function ExistElim defined in Monniaux 2008.  Eliminate Ys from F, yielding O2
 existElim(F,Ys,N,O1,O2,H,Ctx) :-
 	checkSat(H,Status,Ctx),
 	existElimLoop(Status,Ctx,F,Ys,N,O1,O2,H).
@@ -48,7 +52,6 @@ existElimLoop(satisfiable,Ctx,F,Ys,N,O1,O2,H) :-
 	yices_get_model(Ctx,1,Model),
 	generalize1(Model,F,M1),
 	generalize2(Ctx,neg(F),M1,M2),
-	%M1 = M2,
 	elimVarsConjunct(M2,Ys,N,Pi),
 	yices_reset_context(Ctx),
 	existElim(F,Ys,N,(O1;Pi),O2,[H,neg(Pi)],Ctx).
@@ -133,6 +136,10 @@ atomicConstraints(neg(A),As0,As1) :-
 atomicConstraints(A,[A|As],As) :-
 	linear_constraint(A),
 	!.
+atomicConstraints(D1=D2,As0,As2) :-	% boolean equivalence
+	!,
+	atomicConstraints(D1,As0,As1),
+	atomicConstraints(D2,As1,As2).
 atomicConstraints(_,As,As).
 
 trueInModel(C,Model) :-
@@ -171,10 +178,11 @@ getFormula(File, (H :- B)) :-
 	               nl),
 	close(S).
 	
-quantifiedVariables((H:-B),B,Xs,Ys) :-
+quantifiedVariables((H:-B),B,Xs,Ys,Bools) :-
 	varset((H:-B),Xs),
 	varset(B,Zs),
 	setdiff(Zs,Xs,Ys),
+	findAllBools(B,Bools),
 	numbervars(Xs,0,_).
 
 allNeg([],[]) :-
@@ -211,4 +219,20 @@ elimVarsConjunct(F0,Ys,N,F1) :-
 	extendDim(H,N),
 	project(H,Ys,H1),
 	getConstraint(H1,F1).
+
+% Assume all booleans occur as a variable in an and, or or not expression
+findAllBools(D,[D]) :-
+	var(D),
+	!.
+findAllBools((D1;D2),Bools) :-
+	findAllBools(D1,Bs1),
+	findAllBools(D2,Bs2),
+	setunion(Bs1,Bs2,Bools).
+findAllBools([D1|D2],Bools) :-
+	findAllBools(D1,Bs1),
+	findAllBools(D2,Bs2),
+	setunion(Bs1,Bs2,Bools).
+findAllBools(neg(D),Bools) :-
+	findAllBools(D,Bools).
+findAllBools(_,[]).
 
