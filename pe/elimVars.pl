@@ -1,4 +1,4 @@
-:- module(elimVars, _, [assertions, isomodes, doccomments,dynamic]).
+:- module(elimVars, [main/1,elimVars/4], [assertions, isomodes, doccomments,dynamic]).
 %! \title Quantifier elimination using Monniaux algorithm
 % arXiv:0803.1575v2 [cs.LO] 4 Sep 2008 and LPAR 2008
 % David Monniaux: A Quantifier Elimination Algorithm for Linear Real Arithmetic.
@@ -13,36 +13,31 @@
 :- use_module(library(stream_utils)).
 :- use_module(library(ppl)).
 
-:- use_module(chclibs(common)).
 :- use_module(chclibs(setops)).
-:- use_module(chclibs(canonical)).
 :- use_module(chclibs(linearize)).
-:- use_module(chclibs(timer_ciao)).
 :- use_module(chclibs(ppl_ops)).
-:- use_module(chclibs(program_loader)).
 :- use_module(chclibs(yices2_sat)).
 :- use_module(ciao_yices(ciao_yices_2)).
 
-:- use_module(lbe).
-
-:- include(chclibs(messages)).
-
-:- dynamic flag/1.
 
 main([File]) :-
 	start_ppl,
 	yices_init,
 	getFormula(File,F),					% first term in File is F of the form (H:-B)
 	quantifiedVariables(F,B,Xs,Ys), 	% forall Xs. exists Ys. B
+	elimVars(B,Xs,Ys,O),
+	write(O),nl,
+	yices_exit,
+	end_ppl.
+	
+elimVars(B,Xs,Ys,O) :-
 	yices_context(Ctx),
 	length(Xs,N),
 	varTypes(Xs,real,Vs),
 	declareVars(Vs),
 	existElim(B,Ys,N,false,O,B,Ctx),
-	yices_free_context(Ctx),
-	write(O),nl,
-	yices_exit,
-	end_ppl.
+	yices_free_context(Ctx).
+	
 
 % function ExistElim defined in Monniaux 2008.  Eliminate Ys from F
 existElim(F,Ys,N,O1,O2,H,Ctx) :-

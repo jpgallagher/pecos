@@ -21,6 +21,7 @@
 :- use_module(chclibs(scc)).
 :- use_module(chclibs(program_loader)).
 :- use_module(lbe).
+:- use_module(elimVars).
 
 :- use_module(chclibs(yices2_sat)).
 :- use_module(ciao_yices(ciao_yices_2)).
@@ -145,8 +146,8 @@ non_recursive_scc(P/N) :-
 	lbe_clause(A,Def,PCalls,_),
 	(solutionConstraint(A,Def,PCalls,(A,Phi,Ids,AllBools)), Phi \== false -> 
 		(isSat(Phi,AllBools) ->			% numbervars is called within isSat
-			%removeExistsVars(A,Phi,Phi1),	
-			(Phi=(_;_) -> Phi2=[Phi]; Phi2=Phi),
+			removeExistsVars(A,Phi,Phi1),	
+			(Phi1=(_;_) -> Phi2=[Phi1]; Phi2=Phi1),
 			record(A,nonrecPred(Phi2),AllBools,Ids);
 			true)
 		;
@@ -175,49 +176,7 @@ sccIterate([P/N|Ps]) :-
 	sccIterate(Ps).
 sccIterate([]).
 
-removeExistsVars(A,Phi1,Phi2) :-
-	A=..[_|Xs],
-	elimDisjunctVars(Phi1,Xs,Phi2).
-	
-elimDisjunctVars((false;D2),Xs0,E2) :-
-	!,
-	elimDisjunctVars(D2,Xs0,E2).
-elimDisjunctVars((D1;false),Xs0,E1) :-
-	!,
-	elimDisjunctVars(D1,Xs0,E1).
-elimDisjunctVars((D1;D2),Xs0,(E1;E2)) :-
-	!,
-	elimDisjunctVars(D1,Xs0,E1),
-	elimDisjunctVars(D2,Xs0,E2).
-elimDisjunctVars(D,Xs0,E) :-
-	elimVars(D,Xs0,E).
-	
-elimVars(T0,Xs0,T1) :-
-	subTrees(T0,Cs,Ts0),
-	varset(Ts0,Xs1),
-	varset(Cs,Xs2),
-	setunion(Xs0,Xs1,Xs3),
-	setdiff(Xs2,Xs3,Zs),				% Zs can be eliminated
-	setintersect(Xs2,Xs3,Xs),			% Xs are retained
-	copy_term((Xs,Zs,Cs),(Us,Vs,Ds)),
-	linearConstraints(Ds,LDs,NLDs),
-	numbervars((Us,Vs,Ds),0,_),			% get the variable order right when renaming
-	length(Xs2,N),
-	makePolyhedron(LDs,H),
-	extendDim(H,N),
-	project(H,Vs,H1),
-	getConstraint(H1,LDs1),
-	append(LDs1,NLDs,Ds1),
-	melt((Ds1,Us,Vs),(Cs1,Xs,Zs)),		% get the original variable names
-	append(Cs1,Ts0,T1).
-	
 
-subTrees([(D1;D2)|As],Cs,[(D1;D2)|Ts]) :-
-	!,
-	subTrees(As,Cs,Ts).
-subTrees([C|As],[C|Cs],Ts) :-
-	subTrees(As,Cs,Ts).
-subTrees([],[],[]).
 
 	
 solveAndUpdate(A,Phi,Ids,Bools) :-
@@ -380,6 +339,14 @@ incrementOperatorCount :-
 	retract(operatorcount(X)),
 	Y is X + 1,
 	assertz(operatorcount(Y)).
+	
+removeExistsVars(A,Phi,Phi1) :-
+	melt((A,Phi),(A1,Phi2)),
+	varset((A1,Phi2),Xs),
+	varset(Phi2,Zs),
+	setdiff(Zs,Xs,Ys),
+	numbervars(Xs,0,_),
+	elimVars(Phi2,Xs,Ys,Phi1).
 	
 
 /*
