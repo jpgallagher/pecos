@@ -62,17 +62,17 @@ makeLBE(Goal,Defs) :-
 	
 	%write(OutS,		'Trees: '), write(OutS,TP),nl(OutS),
 	treeRoots(TP,Roots),
+	parentTreeList(Roots,Es,TP,PreTrees),
 	reachableSets(Roots,Es,RSs),
 	reverse(RVs,Stack),
-	mergeTrees(Stack,Roots,Es,RSs,TP,_TP1,Ms,MCs,Ss), 
+	mergeTrees(Stack,Roots,Es,RSs,PreTrees,TP,_TP1,Ms), 
 	
 	%write(OutS,		'Multitree: '), write(OutS,Ms),nl(OutS),
 	%write(OutS,		'Singletree: '), write(OutS,Ss),nl(OutS),
 	%write(OutS,		'Multicontext: '), write(OutS,MCs),nl(OutS),
 	%write(OutS,		'Reachable: '), write(OutS,RSs),nl(OutS),
 	
-	makeHeads(Ss,Ms,Hs),
-	unfoldBlocks(RVs,P/N,Ms,MCs,Ss,Hs,Defs).
+	unfoldBlocks(RVs,P/N,PreTrees,Ms,[],Defs).
 	
 	%write(OutS,		'Subtrees: '), write(OutS,TP1),nl(OutS).	
 	
@@ -84,8 +84,6 @@ assertLBEClauses([D|Defs], K) :-
 	K1 is K+1,
 	assertLBEClauses(Defs,K1).
 assertLBEClauses([],_).
-	
-
 
 convertQueryString(Q,Q1) :-
 	read_from_atom(Q,Q1).
@@ -124,81 +122,71 @@ writeReachSets([]).
 isConstraint(C) :-
 	constraint(C,_).
 	
-unfoldBlocks([P|Ps],S,Ms,MCs,Ss,Hs,[PDef|Defs]) :-
-	definedPred(P,S,Ms,MCs),
+unfoldBlocks([P|Ps],Entry,PreTrees,Ms,Hs,[PDef|Defs]) :-
+	definedPred(P,PreTrees,Ms),
 	!,
-	unfoldBlock(P,Ms,MCs,Ss,Hs,PDef),
-	unfoldBlocks(Ps,S,Ms,MCs,Ss,Hs,Defs).
-unfoldBlocks([_|Ps],S,Ms,MCs,Ss,Hs,Defs) :-
-	unfoldBlocks(Ps,S,Ms,MCs,Ss,Hs,Defs).
-unfoldBlocks([],_,_,_,_,_,[]).
+	unfoldBlock(P,PreTrees,Ms,Hs,PDef),
+	unfoldBlocks(Ps,Entry,PreTrees,Ms,Hs,Defs).
+unfoldBlocks([_|Ps],Entry,PreTrees,Ms,Hs,Defs) :-
+	unfoldBlocks(Ps,Entry,PreTrees,Ms,Hs,Defs).
+unfoldBlocks([],_,_,_,_,[]).
 	
-unfoldBlock(F/N,Ms,MCs,Ss,Hs,(A:-Def,PCalls)) :-
+unfoldBlock(F/N,PreTrees,Ms,Hs,(A:-Def,PCalls)) :-
 	!,
 	functor(A,F,N),
-	treeDef(A,Ms,MCs,Ss,Hs,_,Def,[],PCalls,[]),
+	treeDef(A,F/N,PreTrees,Ms,Hs,_,Def,[],PCalls,[]),
 	numbervars((A:-Def,PCalls),0,_).
 
-treeDef(A,Ms,MCs,Ss,Hs0,Hs1,[Def|F0],F1,PCs0,PCs1) :-
+% get the clauses defining A and then expand the body to a large block
+treeDef(A,V,PreTrees,Ms,Hs0,Hs1,[Def|F0],F1,PCs0,PCs1) :-
 	pdef(A,E),
-	expand(E,Def,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1).
+	expand(E,V,Def,PreTrees,Ms,Hs0,Hs1,F0,F1,PCs0,PCs1).
 
-expand((B1;B2),(C1;C2),Ms,MCs,Ss,Hs0,Hs2,F0,F2,PCs0,PCs2) :-
+expand((B1;B2),V,(C1;C2),PreTrees,Ms,Hs0,Hs2,F0,F2,PCs0,PCs2) :-
 	!,
-	expand(B1,C1,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1),
-	expand(B2,C2,Ms,MCs,Ss,Hs1,Hs2,F1,F2,PCs1,PCs2).
-expand([],[],_,_,_,Hs,Hs,F,F,PCs,PCs) :-
+	expand(B1,V,C1,PreTrees,Ms,Hs0,Hs1,F0,F1,PCs0,PCs1),
+	expand(B2,V,C2,PreTrees,Ms,Hs1,Hs2,F1,F2,PCs1,PCs2).
+expand([],_,[],_,_,Hs,Hs,F,F,PCs,PCs) :-
 	!.
-expand([B|Bs],[C|Bs1],Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1) :-
+expand([B|Bs],V,[C|Bs1],PreTrees,Ms,Hs0,Hs1,F0,F1,PCs0,PCs1) :-
 	constraint(B,C),
 	!,
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1).
-expand([B|Bs],[Eqs|Bs1],Ms,MCs,Ss,Hs0,Hs2,F0,F2,PCs0,PCs2) :-
-	singleContext(B,P,N,Ss),
+	expand(Bs,V,Bs1,PreTrees,Ms,Hs0,Hs1,F0,F1,PCs0,PCs1).
+expand([B|Bs],V,[Eqs|Bs1],PreTrees,Ms,Hs0,Hs2,F0,F2,PCs0,PCs2) :- 	% B is a merge point
+	mergePoint(B,P,N,Ms),
 	!,
 	functor(CB,P,N),
 	B =.. [P|Xs],
 	CB =.. [P|Ys],
 	makeEqualities(Xs,Ys,Eqs),
-	expandOrReuse(CB,B,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1),
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs1,Hs2,F1,F2,PCs1,PCs2).
-expand([B|Bs],[Eqs,Bool|Bs1],Ms,MCs,Ss,Hs0,Hs1,F0,F1,[(Bool=CB)|PCs0],PCs1) :-
-	multiContextCall(B,MCs),
+	expandOrReuse(CB,B,V,PreTrees,Ms,Hs0,Hs1,F0,F1,PCs0,PCs1),
+	expand(Bs,V,Bs1,PreTrees,Ms,Hs1,Hs2,F1,F2,PCs1,PCs2).
+expand([B|Bs],V,[Bool|Bs1],PreTrees,Ms,Hs0,Hs1,F0,F1,[(Bool=B)|PCs0],PCs1) :-
+	singleCall(B,V,PreTrees),	% this is the only call to B in V's tree
+	!,
+	expand(Bs,V,Bs1,PreTrees,Ms,[used(B)|Hs0],Hs1,F0,F1,PCs0,PCs1).
+expand([B|Bs],V,[Eqs,Bool|Bs1],PreTrees,Ms,Hs0,Hs1,F0,F1,[(Bool=CB)|PCs0],PCs1) :-
+	definedAtom(B,PreTrees),	% each call gets renamed apart
 	!,
 	makeEqualities(Xs,Ys,Eqs),
 	makeCall(B,Xs,CB,Ys),
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs0,Hs1,F0,F1,PCs0,PCs1).
-expand([B|Bs],[Eqs,Bool|Bs1],Ms,MCs,Ss,Hs0,Hs2,F0,F1,PCs0,PCs2) :-
-	leafCall(B,P,N,Ms),
-	!,
-	functor(CB,P,N),
-	B =.. [P|Xs],
-	CB =.. [P|Ys],
-	makeEqualities(Xs,Ys,Eqs),
-	selectOrReuse(CB,Bool,Hs0,Hs1,PCs0,PCs1),
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs1,Hs2,F0,F1,PCs1,PCs2).
-expand([B|Bs],[Def|Bs1],Ms,MCs,Ss,Hs0,Hs2,F0,F1,PCs0,PCs2) :-
-	treeDef(B,Ms,MCs,Ss,Hs0,Hs1,Def,[],PCs0,PCs1),
-	expand(Bs,Bs1,Ms,MCs,Ss,Hs1,Hs2,F0,F1,PCs1,PCs2).
+	expand(Bs,V,Bs1,PreTrees,Ms,Hs0,Hs1,F0,F1,PCs0,PCs1).
+expand([B|Bs],V,[Def|Bs1],PreTrees,Ms,Hs0,Hs2,F0,F1,PCs0,PCs2) :-
+	treeDef(B,V,PreTrees,Ms,Hs0,Hs1,Def,[],PCs0,PCs1),
+	expand(Bs,V,Bs1,PreTrees,Ms,Hs1,Hs2,F0,F1,PCs1,PCs2).
 	
 expandOrReuse(CB,_,_,_,_,Hs,Hs,F,F,PCs,PCs) :-
-	member(used(CB,_Bool),Hs),
+	member(used(CB),Hs),		% unifies CB with previous copy
 	!.
-expandOrReuse(CB,B,Ms,MCs,Ss,Hs0,Hs2,F0,F1,PCs0,PCs1) :-
-	firstUse(CB,_Bool,Hs0,Hs1),
-	treeDef(B,Ms,MCs,Ss,Hs1,Hs2,F0,F1,PCs0,PCs1).
+expandOrReuse(CB,B,V,PreTrees,Ms,Hs0,Hs1,F0,F1,PCs0,PCs1) :-
+	treeDef(B,V,PreTrees,Ms,[used(CB)|Hs0],Hs1,F0,F1,PCs0,PCs1).
 	
-selectOrReuse(CB,Bool,Hs,Hs,PCs,PCs) :-
-	member(used(CB,Bool),Hs),
+selectOrReuse(CB,_,Hs,Hs,PCs,PCs) :-
+	member(used(CB),Hs), 		% select the one already defined
 	!.
-selectOrReuse(CB,Bool,Hs0,Hs1,[(Bool=CB)|PCs],PCs) :-
-	firstUse(CB,Bool,Hs0,Hs1).
+selectOrReuse(CB,Bool,Hs,[used(CB)|Hs],[(Bool=CB)|PCs],PCs).
 
-firstUse(CB,Bool,[P/N|Hs],[used(CB,Bool)|Hs]) :- 	% record that CB has been used
-	functor(CB,P,N),
-	!.
-firstUse(CB,Bool,[H|Hs],[H|Hs1]) :-
-	firstUse(CB,Bool,Hs,Hs1).
+	
 	
 makeEqualities([],[],[]).
 makeEqualities([X|Xs],[Y|Ys],[X=Y|Eqs]) :-
@@ -208,17 +196,23 @@ boolvars([B=_|PCalls],[B|Bools]) :-
 	boolvars(PCalls,Bools).
 boolvars([],[]).
 	
-multiContextCall(B,MCPs) :-
-	functor(B,P,N),
-	member(P/N,MCPs).
+definedPred(P/N,PreTrees,Ms) :-
+	member(preTrees(P/N,_),PreTrees),
+	\+ member(P/N,Ms).
 	
-leafCall(B,P,N,Ms) :-
+definedAtom(B,PreTrees) :-
+	functor(B,P,N),
+	member(preTrees(P/N,_),PreTrees).
+	
+mergePoint(B,P,N,Ms) :-
 	functor(B,P,N),
 	member(P/N,Ms).
 	
-singleContext(B,P,N,Ss) :-
+singleCall(B,V,PreTrees) :-
 	functor(B,P,N),
-	member(P/N,Ss).
+	member(preTrees(P/N,Ws),PreTrees),
+	member([V],Ws).		% only one call to P/N in V's tree
+	
 
 makeCall(B,Xs,CB,Ys) :-
 	functor(B,P,N),
@@ -269,42 +263,34 @@ nonRoot(Q,CEs,BEs) :-
 edgeTarget(Q,Xs) :-
 	member(_-Q,Xs).
 	
-mergeTrees([V|Vs],Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,Ss) :-
+mergeTrees([V|Vs],Roots,Edges,RSs,PreTrees,Ts0,Ts1,Ms) :-
 	member(V,Roots),
 	!,
-	parentTrees(V,Edges,Ts0,Ws),
-	classifyTree(V,Ws,RSs,Ts0,TType),
-	mergeTrees1(TType,V,Vs,Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,Ss).
-mergeTrees([_|Vs],Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,Ss) :-	% not a root node
-	mergeTrees(Vs,Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,Ss).
-mergeTrees([],_,_,_,Ts,Ts,[],[],[]).
+	classifyTree(V,PreTrees,RSs,Ts0,TType),
+	mergeTrees1(TType,V,Vs,Roots,Edges,RSs,PreTrees,Ts0,Ts1,Ms).
+mergeTrees([_|Vs],Roots,Edges,RSs,PreTrees,Ts0,Ts1,Ms) :-	% not a root node
+	mergeTrees(Vs,Roots,Edges,RSs,PreTrees,Ts0,Ts1,Ms).
+mergeTrees([],_,_,_,_,Ts,Ts,[]).
 
 
-mergeTrees1(multiTree,V,Vs,Roots,Edges,RSs,Ts0,Ts1,[V|Ms],MCs,Ss) :-	% multi-tree
-	!,
-	mergeTrees(Vs,Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,Ss).
-mergeTrees1(multiContext,V,Vs,Roots,Edges,RSs,Ts0,Ts1,Ms,[V|MCs],Ss) :- % multi-context	
-	!,
-	mergeTrees(Vs,Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,Ss).
-mergeTrees1(singleContext(W),V,Vs,Roots,Edges,RSs,Ts0,Ts2,Ms,MCs,[V|Ss]) :-	% single-context
+mergeTrees1(noMerge,_,Vs,Roots,Edges,RSs,PreTrees,Ts0,Ts1,Ms) :-		% noMerge
+	mergeTrees(Vs,Roots,Edges,RSs,PreTrees,Ts0,Ts1,Ms).
+mergeTrees1(merge(W),V,Vs,Roots,Edges,RSs,PreTrees,Ts0,Ts2,[V|Ms]) :-	% merge trees V and W
 	merge(W,V,Ts0,Ts1,_),
-	mergeTrees(Vs,Roots,Edges,RSs,Ts1,Ts2,Ms,MCs,Ss).
-mergeTrees1(rootContext,V,Vs,Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,[V|Ss]) :-	% root-context
-	mergeTrees(Vs,Roots,Edges,RSs,Ts0,Ts1,Ms,MCs,Ss).
+	mergeTrees(Vs,Roots,Edges,RSs,PreTrees,Ts1,Ts2,Ms).
 	
-classifyTree(V,Ws,RSs,Ts0,multiContext) :-
-	member(W,Ws),
+classifyTree(V,PreTrees,RSs,Ts0,merge(W)) :-		% only one pre-tree, and single-context
+	member(preTrees(V,[[W,W|_]]),PreTrees),	
+	\+ multiContext(V,W,RSs,Ts0),
+	!.
+classifyTree(_,_,_,_,noMerge).						% otherwise do not merge.
+
+multiContext(V,W,RSs,Ts0) :-
 	treeNodes(W,Ts0,Ns),
 	reachedFrom(V,RSs,VRs),
 	andNodes(Ns,N1,N2),
 	member(N1,VRs),
 	member(N2,VRs),
-	!.
-classifyTree(_,[_,_|_],_,_,multiTree) :-		% at least two parent trees
-	!.
-classifyTree(_,[],_,_,rootContext) :-			% root context
-	!.
-classifyTree(_,[W],_,_,singleContext(W)) :-		% else single-context, single-tree
 	!.
 	
 andNodes([N|_],N1,N2) :-
@@ -322,10 +308,34 @@ nonLinClause(P/N,F1/N1,F2/N2) :-
 	\+ isConstraint(B2),
 	functor(B2,F2,N2).
 	
-parentTrees(V,Edges,Trees,Ws) :-
-	predecessors(V,Edges,Qs),	
-	(setof(W,[Q,N,D]^(member(Q,Qs),findSimple(N,Q,Trees,data(W,D))),Ws) -> true; Ws = []).
 	
+parentTreeList([V|Vs],Edges,Trees,[preTrees(V,Ws)|PTs]) :-
+	parentTrees(V,Edges,Trees,Ws),
+	parentTreeList(Vs,Edges,Trees,PTs).
+parentTreeList([],_,_,[]).
+
+
+parentTrees(V,Edges,Trees,Ws) :-
+	predecessors(V,Edges,Preds),
+	parents(Preds,Trees,Ps),
+	groupByTree(Ps,Ws).
+	
+parents([Q|Qs],Trees,[A|As]) :-
+	findSimple(_,Q,Trees,data(A,_)),
+	parents(Qs,Trees,As).
+parents([],_,[]).
+	
+groupByTree([P|Ps],Ws) :-
+	groupByTree(Ps,Ws1),
+	insertInGroup(P,Ws1,Ws).
+groupByTree([],[]).
+
+insertInGroup(P,[],[[P]]).						% first occurrence of P
+insertInGroup(P,[[P|Ps]|Gs],[[P,P|Ps]|Gs]) :- 	% found another P
+	!.
+insertInGroup(P,[G|Gs],[G|Gs1]) :-
+	insertInGroup(P,Gs,Gs1).
+
 	
 treeRoots(TP,Roots) :-
 	traverse_tree(TP,Nodes),
@@ -356,13 +366,6 @@ makeHeads1([P/N|Ms],[P/N|Hs]) :-
 makeHeads1([],[]).
 
 
-definedPred(P,P,_,_) :-
-	!.
-definedPred(P,_,Ms,_) :-
-	member(P,Ms),
-	!.
-definedPred(P,_,_,MCs) :-
-	member(P,MCs).
 	
 
 makeClauseId(K,CK) :-
