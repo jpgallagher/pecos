@@ -24,7 +24,7 @@ main([File]) :-
 	start_ppl,
 	yices_init,
 	getFormula(File,F),						% first term in File is F of the form (H:-B)
-	quantifiedVariables(F,B,Xs,Ys,Bools), 	% forall Xs. exists Ys. B
+	quantifiedVariables(F,B,Xs,Ys,Bools), 	% forall exists Ys. B (Xs all vars)
 	elimVars(B,Xs,Ys,Bools,O),
 	write(O),nl,
 	yices_exit,
@@ -51,7 +51,8 @@ existElim(F,Ys,N,O1,O2,H,Ctx) :-
 existElimLoop(satisfiable,Ctx,F,Ys,N,O1,O2,H) :-
 	yices_get_model(Ctx,1,Model),
 	generalize1(Model,F,M1),
-	generalize2(Ctx,neg(F),M1,M2),
+	%generalize2(Ctx,neg(F),M1,M2),
+	M1=M2,
 	elimVarsConjunct(M2,Ys,N,Pi),
 	yices_reset_context(Ctx),
 	existElim(F,Ys,N,(O1;Pi),O2,[H,neg(Pi)],Ctx).
@@ -178,9 +179,9 @@ getFormula(File, (H :- B)) :-
 	               nl),
 	close(S).
 	
-quantifiedVariables((H:-B),B,Xs,Ys,Bools) :-
-	varset((H:-B),Xs),
-	varset(B,Zs),
+quantifiedVariables((H:-B),B,Zs,Ys,Bools) :-
+	varset((H:-B),Zs),
+	varset(H,Xs),
 	setdiff(Zs,Xs,Ys),
 	findAllBools(B,Bools),
 	numbervars(Xs,0,_).

@@ -339,11 +339,11 @@ incrementOperatorCount :-
 	
 removeExistsVars(A,Bools,Phi,Phi1) :-
 	melt((A,Phi,Bools),(A1,Phi2,Bools1)),
-	varset((A1,Phi2),Xs),	% all vars
-	varset(Phi2,Zs),		% body vars
+	varset((A1,Phi2),Zs),	% all vars
+	varset(A,Xs),			% head vars
 	setdiff(Zs,Xs,Ys),		% exists vars
-	numbervars(Xs,0,_),
-	elimVars(Phi2,Xs,Ys,Bools1,Phi1).
+	numbervars(Zs,0,_),
+	elimVars(Phi2,Zs,Ys,Bools1,Phi1).
 	
 
 /*
