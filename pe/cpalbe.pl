@@ -214,8 +214,8 @@ updateRecursiveApprox(A,Ctx,Phi,Bools,Ids) :-
 	extendDim(H1,N),
 	setdiff(Ys,Xs,Zs),
 	project(H1,Zs,Hp),
-	getConstraint(Hp,Cs),
-	record(A,recPred(Cs),[],Ids).
+	%getConstraint(Hp,Cs),
+	record(A,recPred(Hp),[],Ids).
 	
 buildConjunct(Phi,Model,Bools,Cs) :-
 	atomicConstraints(Phi,Bools,As,[]),
@@ -316,7 +316,9 @@ prove([(Bool=_)|Bs],[(Bool=false)|Cs],[Bool|Bools],OBs):-
 getoldfact(B,Cs1,Bools1,T) :-
 	functor(B,F,N),
 	functor(B1,F,N),
-	oldfact(B1,Cs,Bools),
+	(oldfact(B1,rec(H),Bools) ->
+		getConstraint(H,Cs);
+	oldfact(B1,nonrec(Cs),Bools)),
 	melt((B1,Cs,Bools),(B,Cs1,Bools1)),
 	traceTerm(B1,T).
 	
@@ -427,43 +429,46 @@ raise_flag(F):-
 record(F,nonrecPred(Cs),Bools,T) :-
 	cond_assert_nonrec(F,Cs,Bools,T).
 	
-record(F,recPred(Cs),_,T) :-
-	cond_assert_rec(F,Cs,T).
+record(F,recPred(H),_,T) :-
+	cond_assert_rec(F,H,T).
 	
 cond_assert_nonrec(F,Cs,Bools,T):-
 	%write('Asserting...'),nl,
-	assertz(newfact(F,Cs,Bools)),
+	assertz(newfact(F,nonrec(Cs),Bools)),
 	raise_flag(F),
 	(traceTerm(F,_) -> true; assertz(traceTerm(F,T))).
 	%write(traceTerm(F,T)),nl).
 	
 
-cond_assert_rec(F,Cs,T):-
+cond_assert_rec(F,H,T):-
 	functor(F,_,N),
-	makePolyhedron(Cs,H),
-	extendDim(H,N),
+	%makePolyhedron(Cs,H),
+	%extendDim(H,N),
 	%write('Asserting...'),nl,
 	\+ subsumedByExisting(F,N,H),
-	getExistingConstraints(F,Cs0,[]),	% assume no bools in recursive approximations
-	(Cs0=empty -> H0=empty;
-		makePolyhedron(Cs0,H0),
-		extendDim(H0,N)),
+	getExistingConstraints(F,H0,[]),	% assume no bools in recursive approximations
+	%(Cs0=empty -> H0=empty),
+		%makePolyhedron(Cs0,H0),
+		%extendDim(H0,N)),
 	convhull(H0,H,H2),
-	getConstraint(H2,Cs2),
-	assertz(newfact(F,Cs2,[])),
+	%getConstraint(H2,Cs2),
+	assertz(newfact(F,rec(H2),[])),
 	raise_flag(F),
 	(traceTerm(F,_) -> true; assertz(traceTerm(F,T))).
 	%write(traceTerm(F,T)),nl).
 	
-subsumedByExisting(F,N,H) :-
-	fact(F,Cs,[]), 
-	makePolyhedron(Cs,H1), 
-	extendDim(H1,N),
+subsumedByExisting(F,_N,H) :-
+	fact(F,rec(H1),[]), 
+	%makePolyhedron(Cs,H1), 
+	%extendDim(H1,N),
 	contains(H1,H).
 
 
+getExistingConstraints(F,H,Bools) :-
+	oldfact(F,rec(H),Bools),
+	!.
 getExistingConstraints(F,Cs,Bools) :-
-	oldfact(F,Cs,Bools),
+	oldfact(F,nonrec(Cs),Bools),
 	!.
 getExistingConstraints(_,empty,[]).
 
@@ -518,19 +523,19 @@ widenlist([Wc|Ws]) :-
 widenlist([Wc|Ws]) :-
 	functor(Wc,WcF,WcN),
 	widening_point(WcF/WcN,_,0),
-	retract(newfact(Wc,NewCs,[])),
-	retract(oldfact(Wc,OldCs,[])),
-	makePolyhedron(NewCs,NewH),
-	makePolyhedron(OldCs,OldH),
+	retract(newfact(Wc,rec(NewH),[])),
+	retract(oldfact(Wc,rec(OldH),[])),
+	%makePolyhedron(NewCs,NewH),
+	%makePolyhedron(OldCs,OldH),
 	%write(NewCs),nl,
 	%write(OldCs),nl,
 	write(WcF/WcN),nl,
-	extendDim(NewH,WcN),
-	extendDim(OldH,WcN),
+	%extendDim(NewH,WcN),
+	%extendDim(OldH,WcN),
 	debug_message(['Widening at ',Wc]),
 	wutwiden(Wc,NewH,OldH,H2),
-	getConstraint(H2,C2),
-	assertz(oldfact(Wc,C2,[])),
+	%getConstraint(H2,C2),
+	assertz(oldfact(Wc,rec(H2),[])),
 	widenlist(Ws).
 	
 extendDim(H,N) :-
@@ -754,18 +759,23 @@ factFile(user_output):-
 
 factFile(File) :-
 	open(File,write,Sout),
+	writeFilefacts(Sout),
+	close(Sout).
+	
+writeFilefacts(Sout) :-
 	%(File=user_output -> Sout=user_output; open(File,write,Sout)),
-	(oldfact(F,C,_),
-	%ppl_Polyhedron_get_minimized_constraints(H,C),
-	%numbervars(F,0,_),
+	oldfact(F,Y,_),
+	makeFact(Y,C),
 	writeq(Sout,F), write(Sout,' :- '), 
 	writeq(Sout,C),
 	write(Sout,'.'),
 	nl(Sout),
-	fail;
-	close(Sout)).
+	fail.
+writeFilefacts(_).
 
-
+makeFact(rec(H),C) :-
+	getConstraint(H,C).
+makeFact(nonrec(C),C).
 
 /*
 findCounterexampleTrace(S) :-
