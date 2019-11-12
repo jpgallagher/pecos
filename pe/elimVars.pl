@@ -21,219 +21,219 @@
 
 
 main([File]) :-
-	start_ppl,
-	yices_init,
-	getFormula(File,F),						% first term in File is F of the form (H:-B)
-	quantifiedVariables(F,B,Xs,Ys,Bools), 	% forall exists Ys. B (Xs all vars)
-	elimVars(B,Xs,Ys,Bools,O),
-	write(O),nl,
-	yices_exit,
-	end_ppl.
-	
-elimVars(B,Xs,Ys,Bools,O) :-			% allow for boolean variables in B.  
-	yices_context(Ctx),
-	setdiff(Xs,Bools,Reals),
-	varTypes(Reals,real,Vs),
-	declareVars(Vs),
-	varTypes(Bools,bool,Ws),
-	declareVars(Ws),
-	setdiff(Ys,Bools,ElimReals),
-	length(Reals,N),
-	existElim(B,ElimReals,N,false,O,B,Ctx),
-	yices_free_context(Ctx).
-	
+    start_ppl,
+    yices_init,
+    getFormula(File,F),                                             % first term in File is F of the form (H:-B)
+    quantifiedVariables(F,B,Xs,Ys,Bools),   % forall exists Ys. B (Xs all vars)
+    elimVars(B,Xs,Ys,Bools,O),
+    write(O),nl,
+    yices_exit,
+    end_ppl.
+    
+elimVars(B,Xs,Ys,Bools,O) :-                    % allow for boolean variables in B.  
+    yices_context(Ctx),
+    setdiff(Xs,Bools,Reals),
+    varTypes(Reals,real,Vs),
+    declareVars(Vs),
+    varTypes(Bools,bool,Ws),
+    declareVars(Ws),
+    setdiff(Ys,Bools,ElimReals),
+    length(Reals,N),
+    existElim(B,ElimReals,N,false,O,B,Ctx),
+    yices_free_context(Ctx).
+    
 
 % function ExistElim defined in Monniaux 2008.  Eliminate Ys from F, yielding O2
 existElim(F,Ys,N,O1,O2,H,Ctx) :-
-	checkSat(H,Status,Ctx),
-	existElimLoop(Status,Ctx,F,Ys,N,O1,O2,H).
-	
+    checkSat(H,Status,Ctx),
+    existElimLoop(Status,Ctx,F,Ys,N,O1,O2,H).
+    
 existElimLoop(satisfiable,Ctx,F,Ys,N,O1,O2,H) :-
-	yices_get_model(Ctx,1,Model),
-	generalize1(Model,F,M1),
-	%generalize2(Ctx,neg(F),M1,M2),
-	M1=M2,
-	elimVarsConjunct(M2,Ys,N,Pi),
-	yices_reset_context(Ctx),
-	existElim(F,Ys,N,(O1;Pi),O2,[H,neg(Pi)],Ctx).
+    yices_get_model(Ctx,1,Model),
+    generalize1(Model,F,M1),
+    %generalize2(Ctx,neg(F),M1,M2),
+    M1=M2,
+    elimVarsConjunct(M2,Ys,N,Pi),
+    yices_reset_context(Ctx),
+    existElim(F,Ys,N,(O1;Pi),O2,[H,neg(Pi)],Ctx).
 existElimLoop(unsatisfiable,_,_,_,_,O,O1,_) :-
-	removeFalse(O,O1).
+    removeFalse(O,O1).
 
 % function Generalize1 defined in Monniaux 2008
 generalize1(Model,F,M) :-
-	atomicConstraints(F,As,[]),
-	testAllAtoms(As,Model,M).
-	
+    atomicConstraints(F,As,[]),
+    testAllAtoms(As,Model,M).
+    
 % function Generalize2 defined in Monniaux 2008
 generalize2(Ctx,G,M,M2) :-
-	length(M,N),
-	testAllConjuncts(N,Ctx,G,M,M2).
-	
-	
+    length(M,N),
+    testAllConjuncts(N,Ctx,G,M,M2).
+    
+    
 testAllAtoms([],_,[]).
 testAllAtoms([C|As],Model,[C|Cs]) :-
-	trueInModel(C,Model),
-	!,
-	testAllAtoms(As,Model,Cs).
+    trueInModel(C,Model),
+    !,
+    testAllAtoms(As,Model,Cs).
 testAllAtoms([X=Y|As],Model,[X>Y|Cs]) :-
-	trueInModel(X>Y,Model),
-	!,
-	testAllAtoms(As,Model,Cs).
+    trueInModel(X>Y,Model),
+    !,
+    testAllAtoms(As,Model,Cs).
 testAllAtoms([X=Y|As],Model,[X<Y|Cs]) :-
-	trueInModel(X<Y,Model),
-	!,
-	testAllAtoms(As,Model,Cs).
+    trueInModel(X<Y,Model),
+    !,
+    testAllAtoms(As,Model,Cs).
 testAllAtoms([C|As],Model,[NC|Cs]) :-
-	negateAtom(C,NC),
-	testAllAtoms(As,Model,Cs).
-	
+    negateAtom(C,NC),
+    testAllAtoms(As,Model,Cs).
+    
 testAllConjuncts(0,_,_,M,M).
 testAllConjuncts(K,Ctx,G,M,M2) :-
-	removeKth(K,M,M1),
-	isUnsat(Ctx,[M1,G]),
-	!,
-	K1 is K-1,
-	testAllConjuncts(K1,Ctx,G,M1,M2).
+    removeKth(K,M,M1),
+    isUnsat(Ctx,[M1,G]),
+    !,
+    K1 is K-1,
+    testAllConjuncts(K1,Ctx,G,M1,M2).
 testAllConjuncts(K,Ctx,G,M,M2) :-
-	K1 is K-1,
-	testAllConjuncts(K1,Ctx,G,M,M2).
-	
+    K1 is K-1,
+    testAllConjuncts(K1,Ctx,G,M,M2).
+    
 isSat(Ctx,Phi) :-
-	checkSat(Phi,StatusName,Ctx),
-	StatusName==satisfiable.
-	
+    checkSat(Phi,StatusName,Ctx),
+    StatusName==satisfiable.
+    
 isUnsat(Ctx,Phi) :-
-	checkSat(Phi,StatusName,Ctx),
-	StatusName==unsatisfiable.
-	
+    checkSat(Phi,StatusName,Ctx),
+    StatusName==unsatisfiable.
+    
 negateAtom(X>Y,X=<Y).
 negateAtom(X>=Y,X<Y).
 negateAtom(X<Y,X>=Y).
 negateAtom(X=<Y,X>Y).
-	
+    
 checkSat(E,StatusName,Ctx) :-
-	expr2yices(E,Y),
-	yices_parse_term(Y,T),
-	check_no_error(T),
-	yices_reset_context(Ctx),
-	yices_assert_formula(Ctx,T,_Status),
-	yices_check(Ctx,StatusName).
-	
+    expr2yices(E,Y),
+    yices_parse_term(Y,T),
+    check_no_error(T),
+    yices_reset_context(Ctx),
+    yices_assert_formula(Ctx,T,_Status),
+    yices_check(Ctx,StatusName).
+    
 atomicConstraints((D1;D2),As0,As2) :-
-	!,
-	atomicConstraints(D1,As0,As1),
-	atomicConstraints(D2,As1,As2).
+    !,
+    atomicConstraints(D1,As0,As1),
+    atomicConstraints(D2,As1,As2).
 atomicConstraints([C|Cs],As0,As2) :-
-	!,
-	atomicConstraints(C,As0,As1),
-	atomicConstraints(Cs,As1,As2).
+    !,
+    atomicConstraints(C,As0,As1),
+    atomicConstraints(Cs,As1,As2).
 atomicConstraints(false,As,As) :-
-	!.
+    !.
 atomicConstraints([],As,As) :-
-	!.
+    !.
 atomicConstraints(neg(A),As0,As1) :-
-	!,
-	atomicConstraints(A,As0,As1).
+    !,
+    atomicConstraints(A,As0,As1).
 atomicConstraints(A,[A|As],As) :-
-	linear_constraint(A),
-	!.
-atomicConstraints(D1=D2,As0,As2) :-	% boolean equivalence
-	!,
-	atomicConstraints(D1,As0,As1),
-	atomicConstraints(D2,As1,As2).
+    linear_constraint(A),
+    !.
+atomicConstraints(D1=D2,As0,As2) :-     % boolean equivalence
+    !,
+    atomicConstraints(D1,As0,As1),
+    atomicConstraints(D2,As1,As2).
 atomicConstraints(_,As,As).
 
 trueInModel(C,Model) :-
-	expr2yices(C,CExpr),
-	yices_parse_term(CExpr,E),
-	yices_formula_true_in_model(Model,E,V),
-	V==1.
-	
+    expr2yices(C,CExpr),
+    yices_parse_term(CExpr,E),
+    yices_formula_true_in_model(Model,E,V),
+    V==1.
+    
 
-	
+    
 check_no_error(S) :-
-	( S<0 -> report_error
-	; true
-	).
-	
+    ( S<0 -> report_error
+    ; true
+    ).
+    
 report_error :-
-	yices_error_string(E),
-	write_string(E),nl,
-	throw(yices_error(E)).
-	
+    yices_error_string(E),
+    write_string(E),nl,
+    throw(yices_error(E)).
+    
 declareVars([(X,Tau)|Vars]) :- !,
-	expr2yices(X,V),
-	yices_declare_var(Tau,V),
-	declareVars(Vars).
+    expr2yices(X,V),
+    yices_declare_var(Tau,V),
+    declareVars(Vars).
 declareVars([]).
 
 varTypes([],_,[]).
 varTypes([X|Xs],T,[(X,T)|Ys]) :-
-	varTypes(Xs,T,Ys).
-	
+    varTypes(Xs,T,Ys).
+    
 getFormula(File, (H :- B)) :-
-	open(File,read,S),
-	read(S,F),
-	(F = (H:-B) -> true; 
-	               write('Error, no formula found'),
-	               nl),
-	close(S).
-	
+    open(File,read,S),
+    read(S,F),
+    (F = (H:-B) -> true; 
+                   write('Error, no formula found'),
+                   nl),
+    close(S).
+    
 quantifiedVariables((H:-B),B,Zs,Ys,Bools) :-
-	varset((H:-B),Zs),
-	varset(H,Xs),
-	setdiff(Zs,Xs,Ys),
-	findAllBools(B,Bools),
-	numbervars(Xs,0,_).
+    varset((H:-B),Zs),
+    varset(H,Xs),
+    setdiff(Zs,Xs,Ys),
+    findAllBools(B,Bools),
+    numbervars(Xs,0,_).
 
 allNeg([],[]) :-
-	!.
+    !.
 allNeg([B|Bs],[neg(B)|Ns]) :-
-	allNeg(Bs,Ns).
-	
+    allNeg(Bs,Ns).
+    
 list2disjunct([],false) :-
-	!.
+    !.
 list2disjunct([B],B) :-
-	!.
+    !.
 list2disjunct([B|Bs],(B;Ds)) :-
-	list2disjunct(Bs,Ds).
-	
+    list2disjunct(Bs,Ds).
+    
 removeFalse((false;O),O) :-
-	!.
+    !.
 removeFalse((C;O1),(C;O2)) :-
-	removeFalse(O1,O2).
-	
+    removeFalse(O1,O2).
+    
 extendDim(H,N) :-
-	ppl_Polyhedron_space_dimension(H,M),
-	(M<N -> 
-		D is N-M, ppl_Polyhedron_add_space_dimensions_and_embed(H,D);
-		true).
+    ppl_Polyhedron_space_dimension(H,M),
+    (M<N -> 
+            D is N-M, ppl_Polyhedron_add_space_dimensions_and_embed(H,D);
+            true).
 
 removeKth(1,[_|Xs],Xs).
 removeKth(K,[X|Xs],[X|Ys]) :-
-	K>1,
-	K1 is K-1,
-	removeKth(K1,Xs,Ys).
+    K>1,
+    K1 is K-1,
+    removeKth(K1,Xs,Ys).
 
 elimVarsConjunct(F0,Ys,N,F1) :-
-	makePolyhedron(F0,H),
-	extendDim(H,N),
-	project(H,Ys,H1),
-	getConstraint(H1,F1).
+    makePolyhedron(F0,H),
+    extendDim(H,N),
+    project(H,Ys,H1),
+    getConstraint(H1,F1).
 
 % Assume all booleans occur as a variable in an and, or or not expression
 findAllBools(D,[D]) :-
-	var(D),
-	!.
+    var(D),
+    !.
 findAllBools((D1;D2),Bools) :-
-	findAllBools(D1,Bs1),
-	findAllBools(D2,Bs2),
-	setunion(Bs1,Bs2,Bools).
+    findAllBools(D1,Bs1),
+    findAllBools(D2,Bs2),
+    setunion(Bs1,Bs2,Bools).
 findAllBools([D1|D2],Bools) :-
-	findAllBools(D1,Bs1),
-	findAllBools(D2,Bs2),
-	setunion(Bs1,Bs2,Bools).
+    findAllBools(D1,Bs1),
+    findAllBools(D2,Bs2),
+    setunion(Bs1,Bs2,Bools).
 findAllBools(neg(D),Bools) :-
-	findAllBools(D,Bools).
+    findAllBools(D,Bools).
 findAllBools(_,[]).
 
